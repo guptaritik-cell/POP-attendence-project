@@ -22,21 +22,25 @@ export async function GET(
     return NextResponse.json({ error: "Invalid month" }, { status: 400 });
   }
 
+  // Log which env vars are present (helps debug Vercel missing-var issues)
+  console.log("[API] Env check:", {
+    GOOGLE_SHEET_ID:            !!process.env.GOOGLE_SHEET_ID,
+    GOOGLE_OAUTH_CLIENT_ID:     !!process.env.GOOGLE_OAUTH_CLIENT_ID,
+    GOOGLE_OAUTH_CLIENT_SECRET: !!process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    GOOGLE_OAUTH_REFRESH_TOKEN: !!process.env.GOOGLE_OAUTH_REFRESH_TOKEN,
+  });
+
   try {
-    console.log("[API] Importing getMonthData...");
     const { getMonthData } = await import("@/lib/sheets");
-    console.log("[API] Calling getMonthData...");
     const data = await getMonthData(monthIndex);
-    console.log("[API] Data received successfully, returning JSON");
     return NextResponse.json(data, {
-      headers: { "Cache-Control": "no-store" },   // always fresh — no caching
+      headers: { "Cache-Control": "no-store" },
     });
   } catch (err) {
-    console.error(`[API] Error occurred:`, err);
-    console.error(`[API] Error message: ${String(err)}`);
-    console.error(`[API] Error stack:`, (err as any)?.stack);
+    const detail = String(err);
+    console.error(`[API] Sheets error:`, detail);
     return NextResponse.json(
-      { error: "Failed to fetch attendance data", detail: String(err) },
+      { error: "Failed to fetch attendance data", detail },
       { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
