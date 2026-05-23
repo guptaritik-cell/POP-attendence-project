@@ -25,42 +25,25 @@ const MONTH_NAMES = MONTH_TAB_NAMES;
 
 // No server-side cache — every request fetches fresh data from Google Sheets
 
-// ── OAuth2 auth (uses cached access token — no network calls needed) ────────
+// ── OAuth2 auth (refresh token — auto-renews, never expires) ─────────────────
 function getAuth() {
-  console.log("[Sheets] getAuth() called");
-  const accessToken = process.env.GOOGLE_OAUTH_ACCESS_TOKEN;
-  console.log("[Sheets] accessToken exists:", !!accessToken);
+  const clientId     = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
 
-  if (!accessToken) {
-    console.error("[Sheets] GOOGLE_OAUTH_ACCESS_TOKEN not found in env");
+  if (!clientId || !clientSecret || !refreshToken) {
     throw new Error(
-      "Missing GOOGLE_OAUTH_ACCESS_TOKEN env var. Get it from Google OAuth 2.0 Playground."
+      "Missing OAuth2 env vars: GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_OAUTH_REFRESH_TOKEN"
     );
   }
 
-  console.log("[Sheets] Creating OAuth2 client");
-  const oauth2 = new google.auth.OAuth2(
-    process.env.GOOGLE_OAUTH_CLIENT_ID || "",
-    process.env.GOOGLE_OAUTH_CLIENT_SECRET || ""
-  );
-  console.log("[Sheets] Setting credentials with access token");
-  oauth2.setCredentials({ access_token: accessToken });
-  console.log("[Sheets] Auth setup complete");
+  const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2.setCredentials({ refresh_token: refreshToken });
   return oauth2;
 }
 
 function getSheetsClient() {
-  console.log("[Sheets] getSheetsClient() called");
-  try {
-    const auth = getAuth();
-    console.log("[Sheets] Auth obtained successfully");
-    const client = google.sheets({ version: "v4", auth });
-    console.log("[Sheets] Google Sheets client created successfully");
-    return client;
-  } catch (err) {
-    console.error("[Sheets] Error in getSheetsClient():", err);
-    throw err;
-  }
+  return google.sheets({ version: "v4", auth: getAuth() });
 }
 
 // ── Symbol parser ────────────────────────────────────────────────────────────
@@ -159,42 +142,20 @@ export async function getMonthData(
   monthIndex: number,
   year: number = new Date().getFullYear()
 ): Promise<MonthData> {
-  console.log(`[Sheets] getMonthData() called - monthIndex: ${monthIndex}, year: ${year}`);
-  
   const sheetId = process.env.GOOGLE_SHEET_ID;
-  console.log("[Sheets] Sheet ID:", sheetId ? "✓ Present" : "✗ Missing");
-  if (!sheetId) {
-    console.error("[Sheets] GOOGLE_SHEET_ID is not set");
-    throw new Error("GOOGLE_SHEET_ID is not set");
-  }
+  if (!sheetId) throw new Error("GOOGLE_SHEET_ID is not set");
 
   const tabName     = MONTH_TAB_NAMES[monthIndex];     // e.g. "Jan"
   const displayName = MONTH_DISPLAY_NAMES[monthIndex]; // e.g. "January"
-  console.log(`[Sheets] Tab name: ${tabName}, Display name: ${displayName}`);
-  
-  console.log("[Sheets] Creating sheets client...");
   const sheets      = getSheetsClient();
-  console.log("[Sheets] Sheets client created, making API request...");
 
-  try {
-    console.log(`[Sheets] Requesting range: ${tabName}`);
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: tabName,
-    });
-    console.log("[Sheets] API response received successfully");
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: tabName,
+  });
 
-    const rows = (res.data.values ?? []) as string[][];
-    console.log(`[Sheets] Rows received: ${rows.length}`);
-    return parseMonthData(rows, displayName, monthIndex, year);
-  } catch (err) {
-    console.error("[Sheets] Error during API request:", err);
-    console.warn("[Sheets] Falling back to mock data due to network error");
-    
-    // Fallback to mock data if network fails (e.g., Zscaler blocking)
-    const { getMockMonthData } = await import("@/lib/mockData");
-    return getMockMonthData(monthIndex, year);
-  }
+  const rows = (res.data.values ?? []) as string[][];
+  return parseMonthData(rows, displayName, monthIndex, year);
 }
 
 // ── List all tab names ────────────────────────────────────────────────────────
