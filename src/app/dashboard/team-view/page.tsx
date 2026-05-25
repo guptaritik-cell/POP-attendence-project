@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ResponsiveContainer, LineChart, Line,
@@ -50,7 +50,7 @@ function Sparkline({ data }: { data: { v: number }[] }) {
         <Line
           type="monotone"
           dataKey="v"
-          stroke="#7C3AED"
+          stroke="#FF4D00"
           strokeWidth={1.5}
           dot={false}
           isAnimationActive={false}
@@ -71,20 +71,28 @@ function StatCard({
 }) {
   return (
     <div
-      className="relative rounded-xl overflow-hidden px-5 py-4 flex flex-col gap-1"
-      style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.15)" }}
+      className="relative rounded-xl overflow-hidden px-5 pt-5 pb-3 flex flex-col justify-between"
+      style={{
+        background: "#181818",
+        border: "1px solid rgba(255,77,0,0.15)",
+        height: 110,
+      }}
     >
       {/* Top gradient border strip */}
       <div
         className="absolute top-0 left-0 right-0 h-[2px]"
-        style={{ background: "linear-gradient(90deg, #7C3AED, #EC4899)" }}
+        style={{ background: "linear-gradient(90deg, #FF4D00, #FF7A35)" }}
       />
-      <span className="text-[11px] text-[#8B8A9B] font-medium pt-1">{label}</span>
-      <span className="text-[28px] font-semibold leading-tight" style={{ color: color ?? "#F1F0F5" }}>
-        {value}
-      </span>
+      {/* Label + value */}
+      <div className="flex flex-col gap-1">
+        <span className="text-[11px] text-[#888888] font-medium">{label}</span>
+        <span className="text-[26px] font-semibold leading-tight" style={{ color: color ?? "#F5F5F5" }}>
+          {value}
+        </span>
+      </div>
+      {/* Sparkline pinned to bottom — doesn't affect card height */}
       {sparkData && sparkData.length > 1 && (
-        <div className="mt-1 -mx-1">
+        <div className="absolute bottom-0 left-0 right-0 h-[32px] opacity-60">
           <Sparkline data={sparkData} />
         </div>
       )}
@@ -97,10 +105,10 @@ function InfoChip({ label, value }: { label: string; value: string }) {
   return (
     <div
       className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
-      style={{ background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.25)" }}
+      style={{ background: "rgba(255,77,0,0.1)", border: "1px solid rgba(255,77,0,0.25)" }}
     >
-      <span className="text-[#8B8A9B]">{label}:</span>
-      <span className="text-[#F1F0F5] font-medium">{value}</span>
+      <span className="text-[#888888]">{label}:</span>
+      <span className="text-[#F5F5F5] font-medium">{value}</span>
     </div>
   );
 }
@@ -144,6 +152,14 @@ export default function TeamViewPage() {
   const [selectedTeam, setSelectedTeam] = useState<string>("");
   const [localSearch, setLocalSearch] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<EmployeeMonthRecord | null>(null);
+
+  // When month/year changes, refresh (or clear) the open detail panel
+  useEffect(() => {
+    if (!monthData || !selectedRecord) return;
+    const refreshed = monthData.records.find(r => r.employeeId === selectedRecord.employeeId);
+    setSelectedRecord(refreshed ?? null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthData]);
 
   const weekRanges = useMemo(
     () => (monthData ? getWeekRanges(monthData.columnHeaders) : []),
@@ -228,58 +244,71 @@ export default function TeamViewPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-full pb-8">
+    <div className="flex flex-col pb-16">
 
-      {/* ── Team pill selector (sticky) ── */}
-      <div
-        className="sticky top-16 z-20 px-6 py-2 flex items-center gap-2 flex-wrap"
-        style={{ background: "#0F0F13", borderBottom: "1px solid rgba(124,58,237,0.12)" }}
-      >
-        {["", ...allTeams].map(team => {
-          const isActive = selectedTeam === team;
-          const label = team === "" ? "All Teams" : team;
-          return (
-            <button
-              key={label}
-              onClick={() => setSelectedTeam(team)}
-              style={{
-                ...pillBase,
-                color: isActive ? "#fff" : "#8B8A9B",
-              }}
-            >
-              {isActive && (
-                <motion.span
-                  layoutId="team-indicator"
-                  className="absolute inset-0 rounded-full"
-                  style={{ background: "linear-gradient(135deg, #7C3AED, #EC4899)" }}
-                  transition={{ type: "spring", stiffness: 420, damping: 32 }}
-                />
-              )}
-              <span className="relative z-10">{label}</span>
-            </button>
-          );
-        })}
+      {/* ── ONE combined sticky header: pills + filter bar ── */}
+      <div className="sticky top-0 z-20" style={{ background: "#0D0D0D" }}>
 
-        {/* Info chips for specific team */}
-        <AnimatePresence>
-          {teamInfo && (
-            <motion.div
-              key="chips"
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              transition={{ duration: 0.2 }}
-              className="flex items-center gap-2 ml-3"
-            >
-              <InfoChip label="BU Lead" value={teamInfo.buLead} />
-              <InfoChip label="Members" value={String(teamInfo.members)} />
-              <InfoChip
-                label="Avg Att."
-                value={`${teamInfo.avgAtt.toFixed(1)}%`}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Pills row — horizontal scroll, never wraps */}
+        <div
+          className="px-6 py-2 flex items-center gap-2 overflow-x-auto"
+          style={{ borderBottom: "1px solid rgba(255,77,0,0.08)", scrollbarWidth: "none" }}
+        >
+          {["", ...allTeams].map(team => {
+            const isActive = selectedTeam === team;
+            const label = team === "" ? "All Teams" : team;
+            return (
+              <button
+                key={label}
+                onClick={() => setSelectedTeam(team)}
+                style={{
+                  ...pillBase,
+                  color: isActive ? "#fff" : "#888888",
+                  flexShrink: 0,
+                }}
+              >
+                {isActive && (
+                  <motion.span
+                    layoutId="team-indicator"
+                    className="absolute inset-0 rounded-full"
+                    style={{ background: "linear-gradient(135deg, #FF4D00, #FF7A35)" }}
+                    transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                  />
+                )}
+                <span className="relative z-10">{label}</span>
+              </button>
+            );
+          })}
+
+          {/* Info chips */}
+          <AnimatePresence>
+            {teamInfo && (
+              <motion.div
+                key="chips"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center gap-2 ml-2 flex-shrink-0"
+              >
+                <InfoChip label="BU Lead" value={teamInfo.buLead} />
+                <InfoChip label="Members" value={String(teamInfo.members)} />
+                <InfoChip label="Avg Att." value={`${teamInfo.avgAtt.toFixed(1)}%`} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Filter bar — NOT sticky itself, parent is sticky */}
+        <FilterBar
+          monthData={monthData}
+          weekRanges={weekRanges}
+          localSearch={localSearch}
+          onLocalSearchChange={setLocalSearch}
+          filteredRecords={displayRecords}
+          hideTeamFilter
+          isSticky={false}
+        />
       </div>
 
       {/* ── Stats cards ── */}
@@ -288,7 +317,7 @@ export default function TeamViewPage() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-4 gap-4 px-6 pt-3 pb-1"
+        className="grid grid-cols-4 gap-4 px-6 pt-4 pb-4"
       >
         <motion.div variants={cardVariants}>
           <StatCard label="Total Members" value={stats?.total ?? "—"} />
@@ -305,7 +334,7 @@ export default function TeamViewPage() {
           <StatCard
             label={viewMode === "weekly" ? "WFH Days (Week)" : "Total WFH Days"}
             value={stats?.totalWFH ?? "—"}
-            color="#a78bfa"
+            color="#FF7A35"
           />
         </motion.div>
         <motion.div variants={cardVariants}>
@@ -316,16 +345,6 @@ export default function TeamViewPage() {
           />
         </motion.div>
       </motion.div>
-
-      {/* ── Filter bar ── */}
-      <FilterBar
-        monthData={monthData}
-        weekRanges={weekRanges}
-        localSearch={localSearch}
-        onLocalSearchChange={setLocalSearch}
-        filteredRecords={displayRecords}
-        hideTeamFilter
-      />
 
       {/* ── Attendance table ── */}
       <div className="px-6 py-4">
@@ -351,9 +370,9 @@ export default function TeamViewPage() {
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] as const }}
               className="rounded-xl p-5"
-              style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.15)" }}
+              style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.15)" }}
             >
-              <p className="text-xs font-medium text-[#8B8A9B] mb-4">
+              <p className="text-xs font-medium text-[#888888] mb-4">
                 Team Attendance Comparison
               </p>
               {monthData && <TeamComparisonChart records={monthData.records} />}
@@ -364,9 +383,9 @@ export default function TeamViewPage() {
         {/* Trend chart — always */}
         <div
           className="rounded-xl p-5"
-          style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.15)" }}
+          style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.15)" }}
         >
-          <p className="text-xs font-medium text-[#8B8A9B] mb-4">
+          <p className="text-xs font-medium text-[#888888] mb-4">
             Weekly Attendance Trend
             {selectedTeam ? ` — ${selectedTeam}` : " — All Teams"}
           </p>

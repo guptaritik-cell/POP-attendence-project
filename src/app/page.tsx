@@ -1,30 +1,13 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-/* Three drifting orbs — warm orange-red palette */
-const orbs = [
-  {
-    size: 560,
-    color: "radial-gradient(circle, rgba(255,77,0,0.55) 0%, transparent 70%)",
-    animate: { x: [-220, -120, -220], y: [-160, -60, -160] },
-    duration: 9,
-  },
-  {
-    size: 480,
-    color: "radial-gradient(circle, rgba(204,31,0,0.45) 0%, transparent 70%)",
-    animate: { x: [180, 260, 180], y: [120, 200, 120] },
-    duration: 11,
-  },
-  {
-    size: 420,
-    color: "radial-gradient(circle, rgba(255,122,53,0.35) 0%, transparent 70%)",
-    animate: { x: [-60, 40, -60], y: [220, 140, 220] },
-    duration: 13,
-  },
-];
+/* Load Silk lazily — WebGL / Three.js must run client-side only */
+const Silk = dynamic(() => import("@/components/Silk"), { ssr: false });
 
 const stagger = {
   hidden: {},
@@ -36,54 +19,29 @@ const fadeUp = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.0, 0.0, 0.2, 1] as const } },
 };
 
-/* POP "p" logo — matches the round orange-red metallic icon */
+/* POP logo — actual brand image */
 function PopLogo({ size = 72 }: { size?: number }) {
   return (
     <motion.div
-      className="relative flex items-center justify-center select-none overflow-hidden"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        /* Brushed radial gradient matching the real POP icon */
-        background:
-          "radial-gradient(circle at 38% 32%, #FF7A35 0%, #FF4D00 42%, #CC1F00 78%, #8B1500 100%)",
-        boxShadow:
-          "0 0 0 2px rgba(255,122,53,0.25), inset 0 1px 1px rgba(255,255,255,0.18)",
-      }}
+      className="select-none"
+      style={{ width: size, height: size }}
       animate={{
-        boxShadow: [
-          "0 0 0 2px rgba(255,122,53,0.2), 0 0 24px rgba(255,77,0,0.4), inset 0 1px 1px rgba(255,255,255,0.18)",
-          "0 0 0 4px rgba(255,122,53,0.15), 0 0 48px rgba(255,77,0,0.7), 0 0 72px rgba(204,31,0,0.3), inset 0 1px 1px rgba(255,255,255,0.18)",
-          "0 0 0 2px rgba(255,122,53,0.2), 0 0 24px rgba(255,77,0,0.4), inset 0 1px 1px rgba(255,255,255,0.18)",
+        filter: [
+          "drop-shadow(0 0 12px rgba(255,77,0,0.4))",
+          "drop-shadow(0 0 28px rgba(255,77,0,0.75)) drop-shadow(0 0 48px rgba(204,31,0,0.3))",
+          "drop-shadow(0 0 12px rgba(255,77,0,0.4))",
         ],
       }}
       transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
     >
-      {/* Metallic sheen overlay */}
-      <div
-        className="absolute inset-0 rounded-full pointer-events-none"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, transparent 55%, rgba(0,0,0,0.15) 100%)",
-        }}
+      <Image
+        src="/POP.png"
+        alt="POP logo"
+        width={size}
+        height={size}
+        className="rounded-full"
+        priority
       />
-      {/* Lowercase "p" — matches real POP logo */}
-      <span
-        style={{
-          fontFamily: "Inter, sans-serif",
-          fontSize: size * 0.52,
-          fontWeight: 900,
-          color: "#FFFFFF",
-          letterSpacing: "-0.03em",
-          lineHeight: 1,
-          position: "relative",
-          top: size * 0.04,          /* slight optical descent for "p" */
-          textShadow: "0 2px 8px rgba(0,0,0,0.35)",
-        }}
-      >
-        p
-      </span>
     </motion.div>
   );
 }
@@ -93,39 +51,28 @@ export default function LandingPage() {
 
   return (
     <main className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0D0D0D]">
-      {/* Ambient orbs */}
-      {orbs.map((orb, i) => (
-        <motion.div
-          key={i}
-          className="absolute pointer-events-none"
-          style={{
-            width: orb.size,
-            height: orb.size,
-            background: orb.color,
-            borderRadius: "50%",
-            filter: "blur(90px)",
-            opacity: 0.18,
-          }}
-          animate={orb.animate}
-          transition={{
-            duration: orb.duration,
-            repeat: Infinity,
-            repeatType: "mirror",
-            ease: "easeInOut",
-          }}
-        />
-      ))}
 
-      {/* Subtle noise-texture vignette */}
+      {/* ── Silk WebGL background ── */}
+      <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.9 }}>
+        <Silk
+          speed={2.7}
+          scale={0.4}
+          color="#F97316"
+          noiseIntensity={0.2}
+          rotation={1.9}
+        />
+      </div>
+
+      {/* Dark vignette so text stays legible */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.55) 100%)",
+            "radial-gradient(ellipse at 50% 50%, rgba(13,13,13,0.25) 0%, rgba(13,13,13,0.72) 100%)",
         }}
       />
 
-      {/* Main content */}
+      {/* ── Main content ── */}
       <motion.div
         className="relative z-10 flex flex-col items-center gap-7 px-6 text-center"
         variants={stagger}
@@ -140,22 +87,24 @@ export default function LandingPage() {
         {/* Wordmark */}
         <motion.div variants={fadeUp} className="flex flex-col items-center gap-2">
           <h1
-            className="font-black tracking-tight text-white"
-            style={{ fontSize: 42, lineHeight: 1.1, letterSpacing: "-0.03em" }}
+            className="tracking-tight"
+            style={{
+              fontFamily: "var(--font-awesome-serif)",
+              fontWeight: 800,
+              fontStyle: "italic",
+              fontSize: 68,
+              lineHeight: 1.15,
+              letterSpacing: "-0.01em",
+              paddingBottom: "0.12em", /* room for tall descenders like 'd' */
+              background: "linear-gradient(90deg, #FF7A35, #FF4D00)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
           >
-            Attendance,{" "}
-            <span
-              style={{
-                background: "linear-gradient(90deg, #FF7A35, #FF4D00)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              Reimagined
-            </span>
+            Attendance,{" "}Reimagined
           </h1>
-          <p className="text-[15px]" style={{ color: "#888888" }}>
+          <p className="text-[15px]" style={{ color: "#aaaaaa" }}>
             POP Private Limited &nbsp;&middot;&nbsp; Internal HR Platform
           </p>
         </motion.div>

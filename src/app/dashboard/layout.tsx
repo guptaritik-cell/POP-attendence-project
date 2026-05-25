@@ -14,7 +14,7 @@ export default async function DashboardLayout({
   if (!session) redirect("/login");
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#0F0F13" }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: "#0D0D0D" }}>
       {/* DataSync fetches sheet data for all dashboard pages */}
       <DataSync />
       <Sidebar />

@@ -18,10 +18,10 @@ interface Props {
 }
 
 const TOOLTIP_STYLE = {
-  background: "#22222F",
-  border: "1px solid rgba(124,58,237,0.3)",
+  background: "#222222",
+  border: "1px solid rgba(255,77,0,0.3)",
   borderRadius: 8,
-  color: "#F1F0F5",
+  color: "#F5F5F5",
   fontSize: 12,
 };
 
@@ -31,14 +31,14 @@ const CenterLabel = ({ total }: { total: number }) => (
     className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
     style={{ top: 0 }}
   >
-    <span className="text-xl font-bold text-[#F1F0F5]">{total}</span>
-    <span className="text-[10px] text-[#8B8A9B]">Employees</span>
+    <span className="text-xl font-bold text-[#F5F5F5]">{total}</span>
+    <span className="text-[10px] text-[#888888]">Employees</span>
   </div>
 );
 
 export function TeamPieChart({ data, total, isLoading }: Props) {
   if (isLoading) {
-    return <Skeleton className="h-64 rounded-lg bg-[#22222F]" />;
+    return <Skeleton className="h-64 rounded-lg bg-[#222222]" />;
   }
   if (!data.length) {
     return <p className="text-sm text-[#555] py-8 text-center">No data</p>;

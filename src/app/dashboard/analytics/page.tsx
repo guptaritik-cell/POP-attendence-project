@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, CalendarDays, UserCheck, Home, UserX, Star,
-  ArrowUp,
+  ArrowUp, Trophy, AlertTriangle,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -19,8 +19,6 @@ import { TeamBarChart } from "@/components/analytics/TeamBarChart";
 import type { TeamBarDatum } from "@/components/analytics/TeamBarChart";
 import { DailyTrendChart } from "@/components/analytics/DailyTrendChart";
 import type { DailyTrendPoint } from "@/components/analytics/DailyTrendChart";
-import { TeamPieChart } from "@/components/analytics/TeamPieChart";
-import type { PieDatum } from "@/components/analytics/TeamPieChart";
 import { HeatmapChart } from "@/components/analytics/HeatmapChart";
 import type { HeatmapCell } from "@/components/analytics/HeatmapChart";
 import { InsightCard } from "@/components/analytics/InsightCard";
@@ -28,8 +26,8 @@ import type { EmployeeMonthRecord } from "@/types/attendance";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TEAM_COLORS: Record<string, string> = {
-  "Founder":     "#7C3AED",
-  "Credit Card": "#EC4899",
+  "Founder":     "#FF4D00",
+  "Credit Card": "#FF7A35",
   "Marketplace": "#06b6d4",
   "Design":      "#f59e0b",
   "Analytics":   "#10b981",
@@ -38,14 +36,14 @@ const TEAM_COLORS: Record<string, string> = {
   "Finance":     "#f97316",
 };
 const TEAM_COLOR_LIST = [
-  "#7C3AED","#EC4899","#06b6d4","#f59e0b","#10b981","#ef4444","#8b5cf6","#f97316",
+  "#FF4D00","#FF7A35","#06b6d4","#f59e0b","#10b981","#ef4444","#8b5cf6","#f97316",
 ];
 
 const TOOLTIP_STYLE = {
-  background: "#22222F",
-  border: "1px solid rgba(124,58,237,0.3)",
+  background: "#222222",
+  border: "1px solid rgba(255,77,0,0.3)",
   borderRadius: 8,
-  color: "#F1F0F5",
+  color: "#F5F5F5",
   fontSize: 12,
 };
 
@@ -74,12 +72,12 @@ function Section({
   return (
     <div
       className={`rounded-xl p-5 ${className}`}
-      style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.2)" }}
+      style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.2)" }}
     >
       <div className="mb-4">
-        <p className="text-base font-medium text-[#F1F0F5]">{title}</p>
+        <p className="text-base font-medium text-[#F5F5F5]">{title}</p>
         {subtitle && (
-          <p className="text-xs text-[#8B8A9B] mt-0.5">{subtitle}</p>
+          <p className="text-xs text-[#888888] mt-0.5">{subtitle}</p>
         )}
       </div>
       {children}
@@ -100,8 +98,12 @@ function MetricCard({ label, value, icon, iconBg, color }: StatMeta) {
   return (
     <motion.div
       variants={fadeUp}
-      className="rounded-xl p-5 flex items-start gap-4"
-      style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.15)" }}
+      className="rounded-xl p-5 flex items-center gap-4"
+      style={{
+        background: "#181818",
+        border: "1px solid rgba(255,77,0,0.15)",
+        height: 100,
+      }}
     >
       <div
         className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
@@ -109,11 +111,11 @@ function MetricCard({ label, value, icon, iconBg, color }: StatMeta) {
       >
         {icon}
       </div>
-      <div>
-        <p className="text-[32px] font-semibold leading-none" style={{ color: color ?? "#F1F0F5" }}>
+      <div className="min-w-0">
+        <p className="text-[28px] font-semibold leading-none" style={{ color: color ?? "#F5F5F5" }}>
           {value}
         </p>
-        <p className="text-[13px] text-[#8B8A9B] mt-1">{label}</p>
+        <p className="text-[12px] text-[#888888] mt-1.5 leading-snug">{label}</p>
       </div>
     </motion.div>
   );
@@ -140,14 +142,14 @@ function HorizBarCard({
   return (
     <Section title={title} subtitle={subtitle}>
       {isLoading ? (
-        <Skeleton className="h-52 rounded-lg bg-[#22222F]" />
+        <Skeleton className="h-52 rounded-lg bg-[#222222]" />
       ) : (
         <div className="relative">
           <svg width={0} height={0} style={{ position: "absolute" }}>
             <defs>
               <linearGradient id={`horizGrad-${dataKey}`} x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%"   stopColor={barColor} />
-                <stop offset="100%" stopColor="#EC4899" />
+                <stop offset="100%" stopColor="#FF7A35" />
               </linearGradient>
             </defs>
           </svg>
@@ -160,7 +162,7 @@ function HorizBarCard({
             >
               <XAxis
                 type="number"
-                tick={{ fill: "#8B8A9B", fontSize: 10 }}
+                tick={{ fill: "#888888", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -174,13 +176,13 @@ function HorizBarCard({
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                cursor={{ fill: "rgba(124,58,237,0.06)" }}
+                cursor={{ fill: "rgba(255,77,0,0.06)" }}
                 formatter={(v: unknown) => [`${v} ${unit}`, title]}
               />
               <Bar
                 dataKey="value"
                 radius={[0, 4, 4, 0]}
-                background={{ fill: "rgba(124,58,237,0.06)", radius: 4 }}
+                background={{ fill: "rgba(255,77,0,0.06)", radius: 4 }}
                 isAnimationActive
                 animationDuration={800}
               >
@@ -191,7 +193,7 @@ function HorizBarCard({
                   dataKey="value"
                   position="right"
                   formatter={(v: unknown) => `${v} ${unit}`}
-                  style={{ fill: "#8B8A9B", fontSize: 11 }}
+                  style={{ fill: "#888888", fontSize: 11 }}
                 />
               </Bar>
             </BarChart>
@@ -245,11 +247,13 @@ export default function AnalyticsPage() {
     if (!records.length) return [];
     const n = records.length;
     const avgAtt  = records.reduce((s, r) => s + r.attendancePercent, 0) / n;
-    const workDays = records[0]?.workingDays ?? 0;
+    // Working days this month = max across all employees (eliminates mid-month joiners pulling it down)
+    const workDays = Math.max(...records.map(r => r.workingDays));
     const totalP   = records.reduce((s, r) => s + r.totalPresent, 0);
     const totalWFH = records.reduce((s, r) => s + r.totalWFH, 0);
     const totalA   = records.reduce((s, r) => s + r.totalAbsent, 0);
-    const perfect  = records.filter(r => r.attendancePercent >= 99.9).length;
+    // Perfect attendance: zero absences AND zero half-days
+    const perfect  = records.filter(r => r.totalAbsent === 0 && r.totalHalfDay === 0).length;
 
     const attColor = avgAtt >= 90 ? "#4ade80" : avgAtt >= 75 ? "#fbbf24" : "#f87171";
     return [
@@ -257,28 +261,28 @@ export default function AnalyticsPage() {
         label: "Company-wide Avg Attendance",
         value: `${avgAtt.toFixed(1)}%`,
         icon: <TrendingUp size={18} className="text-white" />,
-        iconBg: "linear-gradient(135deg,#7C3AED,#EC4899)",
+        iconBg: "linear-gradient(135deg,#FF4D00,#FF7A35)",
         color: attColor,
       },
       {
         label: "Working Days This Month",
         value: String(workDays),
         icon: <CalendarDays size={18} className="text-white" />,
-        iconBg: "linear-gradient(135deg,#06b6d4,#7C3AED)",
+        iconBg: "linear-gradient(135deg,#FF7A35,#fbbf24)",
       },
       {
         label: "Total Present Days (sum)",
         value: totalP.toFixed(0),
         icon: <UserCheck size={18} className="text-white" />,
-        iconBg: "linear-gradient(135deg,#10b981,#06b6d4)",
+        iconBg: "linear-gradient(135deg,#10b981,#34d399)",
         color: "#4ade80",
       },
       {
         label: "Total WFH Days",
         value: String(totalWFH),
         icon: <Home size={18} className="text-white" />,
-        iconBg: "linear-gradient(135deg,#8b5cf6,#7C3AED)",
-        color: "#a78bfa",
+        iconBg: "linear-gradient(135deg,#06b6d4,#0ea5e9)",
+        color: "#FF7A35",
       },
       {
         label: "Total Absences",
@@ -364,40 +368,35 @@ export default function AnalyticsPage() {
   // ── Section 6: Daily trend ────────────────────────────────────────────────
   const dailyTrendData = useMemo((): DailyTrendPoint[] => {
     if (!monthData || !records.length) return [];
-    const n = records.length;
     return monthData.columnHeaders.map((h, i) => {
       const dayNum = i + 1;
-      // Check if it's a non-working day
-      const firstRecord = records[0];
-      const exDay = firstRecord?.days.find(d => d.date === h);
-      if (exDay?.symbol === "WO" || exDay?.symbol === "NHD") {
-        return { day: dayNum, label: String(dayNum), value: null };
-      }
-      let total = 0;
+      let present = 0, workingCount = 0;
+
       for (const r of records) {
         const d = r.days.find(dd => dd.date === h);
-        if (!d) continue;
-        if (d.symbol === "P" || d.symbol === "WFH") total += 1;
-        else if (d.symbol === "HD") total += 0.5;
+        // Skip non-working days and missing entries
+        if (!d || d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "") continue;
+        workingCount++;
+        if (d.symbol === "P" || d.symbol === "WFH") present += 1;
+        else if (d.symbol === "HD") present += 0.5;
+        // "A" adds 0 — counted as working day but not present
       }
+
+      // If nobody had this as a working day, it's a weekend/holiday for all → skip
+      if (workingCount === 0) {
+        return { day: dayNum, label: String(dayNum), value: null };
+      }
+
+      // Attendance % = present employees / employees for whom it was a working day
       return {
         day: dayNum,
         label: String(dayNum),
-        value: Math.round((total / n) * 1000) / 10,  // percentage with 1 decimal
+        value: Math.round((present / workingCount) * 1000) / 10,
       };
     });
   }, [records, monthData]);
 
-  // ── Section 7: Team composition pie ──────────────────────────────────────
-  const pieData = useMemo((): PieDatum[] => {
-    return allTeams.map((team, i) => ({
-      name: team,
-      value: records.filter(r => r.team === team).length,
-      color: TEAM_COLORS[team] ?? TEAM_COLOR_LIST[i % TEAM_COLOR_LIST.length],
-    }));
-  }, [records, allTeams]);
-
-  // ── Section 8: Monthly insights ──────────────────────────────────────────
+  // ── Section 7: Monthly insights ──────────────────────────────────────────
   const insights = useMemo(() => {
     if (!allTeams.length || !records.length) return [];
 
@@ -410,24 +409,24 @@ export default function AnalyticsPage() {
     const best  = [...teamAvgAtt].sort((a, b) => b.avg - a.avg)[0];
     const worst = [...teamAvgAtt].sort((a, b) => a.avg - b.avg)[0];
 
-    // Zero absences count
-    const zeroAbsences = records.filter(r => r.totalAbsent === 0).length;
+    // Perfect attendance: zero absences AND zero half-days (consistent with Key Metrics card)
+    const perfectCount = records.filter(r => r.totalAbsent === 0 && r.totalHalfDay === 0).length;
 
     return [
       {
-        emoji: "🏆",
+        icon: <Trophy size={18} color="#FF4D00" />,
         title: `Best Team: ${best?.team}`,
         body: `${best?.team} leads with ${best?.avg.toFixed(1)}% average attendance this month.`,
-        accentColor: "#7C3AED",
+        accentColor: "#FF4D00",
       },
       {
-        emoji: "📈",
+        icon: <TrendingUp size={18} color="#10b981" />,
         title: "Perfect Attendance Heroes",
-        body: `${zeroAbsences} employee${zeroAbsences !== 1 ? "s" : ""} had zero absences — showing up every single working day.`,
+        body: `${perfectCount} employee${perfectCount !== 1 ? "s" : ""} had zero absences and zero half-days — showing up fully every single working day.`,
         accentColor: "#10b981",
       },
       {
-        emoji: "⚠️",
+        icon: <AlertTriangle size={18} color="#f59e0b" />,
         title: `Watch List: ${worst?.team}`,
         body: `${worst?.team} averaged only ${worst?.avg.toFixed(1)}% this month. Consider a quick check-in with the team.`,
         accentColor: "#f59e0b",
@@ -462,7 +461,7 @@ export default function AnalyticsPage() {
         >
           {isLoading
             ? Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-24 rounded-xl bg-[#22222F]" />
+                <Skeleton key={i} className="h-24 rounded-xl bg-[#222222]" />
               ))
             : metrics.map(m => (
                 <MetricCard key={m.label} {...m} />
@@ -473,13 +472,15 @@ export default function AnalyticsPage() {
         {/* ── Section 2: Leaderboard ── */}
         <div className="grid grid-cols-2 gap-4">
           <LeaderboardCard
-            title="🥇 Top Performers"
+            title="Top Performers"
+            icon={<Trophy size={16} className="text-white" />}
             records={topPerformers}
             type="top"
             isLoading={isLoading}
           />
           <LeaderboardCard
-            title="⚠️ Needs Attention"
+            title="Needs Attention"
+            icon={<AlertTriangle size={16} className="text-white" />}
             records={bottomPerformers}
             type="bottom"
             isLoading={isLoading}
@@ -501,7 +502,7 @@ export default function AnalyticsPage() {
           data={wfhLeaders}
           dataKey="wfh"
           unit="days"
-          barColor="#7C3AED"
+          barColor="#FF4D00"
           isLoading={isLoading}
         />
 
@@ -534,21 +535,13 @@ export default function AnalyticsPage() {
           <DailyTrendChart data={dailyTrendData} isLoading={isLoading} />
         </Section>
 
-        {/* ── Section 7: Team composition ── */}
-        <Section
-          title="Team Size & Composition"
-          subtitle="Employee count per team"
-        >
-          <TeamPieChart data={pieData} total={records.length} isLoading={isLoading} />
-        </Section>
-
-        {/* ── Section 8: Monthly insights ── */}
+        {/* ── Section 7: Monthly insights ── */}
         <div>
-          <p className="text-base font-medium text-[#F1F0F5] mb-4">Monthly Insights</p>
+          <p className="text-base font-medium text-[#F5F5F5] mb-4">Monthly Insights</p>
           {isLoading ? (
             <div className="grid grid-cols-3 gap-4">
               {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-24 rounded-xl bg-[#22222F]" />
+                <Skeleton key={i} className="h-24 rounded-xl bg-[#222222]" />
               ))}
             </div>
           ) : (
@@ -573,7 +566,7 @@ export default function AnalyticsPage() {
             transition={{ duration: 0.2 }}
             onClick={scrollToTop}
             className="fixed bottom-6 right-6 z-50 w-10 h-10 rounded-full flex items-center justify-center shadow-lg"
-            style={{ background: "linear-gradient(135deg,#7C3AED,#EC4899)" }}
+            style={{ background: "linear-gradient(135deg,#FF4D00,#FF7A35)" }}
             aria-label="Back to top"
           >
             <ArrowUp size={16} className="text-white" />

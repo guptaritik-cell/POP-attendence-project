@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
@@ -8,6 +9,33 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+const awesomeSerif = localFont({
+  src: [
+    {
+      path: "../../public/fonts/AwesomeSerifItalic/AwesomeSerifItalic-Regular.ttf",
+      weight: "400",
+      style: "italic",
+    },
+    {
+      path: "../../public/fonts/AwesomeSerifItalic/AwesomeSerifItalic-MediumTall.ttf",
+      weight: "500",
+      style: "italic",
+    },
+    {
+      path: "../../public/fonts/AwesomeSerifItalic/AwesomeSerifItalic-BoldTall.ttf",
+      weight: "700",
+      style: "italic",
+    },
+    {
+      path: "../../public/fonts/AwesomeSerifItalic/AwesomeSerifItalic-BdExraTall.ttf",
+      weight: "800",
+      style: "italic",
+    },
+  ],
+  variable: "--font-awesome-serif",
   display: "swap",
 });
 
@@ -22,8 +50,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${inter.variable}`}>
-      <body className="min-h-screen bg-[#0F0F13] font-sans antialiased">
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${awesomeSerif.variable}`}>
+      <body className="min-h-screen bg-[#0D0D0D] font-sans antialiased">
         <Providers>
           <TooltipProvider delayDuration={300}>
             {children}
@@ -32,9 +60,9 @@ export default function RootLayout({
             theme="dark"
             toastOptions={{
               style: {
-                background: "#1A1A24",
-                border: "1px solid rgba(124,58,237,0.3)",
-                color: "#F1F0F5",
+                background: "#181818",
+                border: "1px solid rgba(255,77,0,0.3)",
+                color: "#F5F5F5",
               },
             }}
           />

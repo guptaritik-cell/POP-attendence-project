@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -14,10 +15,10 @@ import {
 } from "@/components/ui/tooltip";
 
 // ── Brand colours (dashboard uses original purple spec) ───────────────────
-const PURPLE      = "#7C3AED";
-const SURFACE     = "#1A1A24";
-const BORDER_CLR  = "rgba(124,58,237,0.15)";
-const ACTIVE_BG   = "rgba(124,58,237,0.12)";
+const PURPLE      = "#FF4D00";
+const SURFACE     = "#181818";
+const BORDER_CLR  = "rgba(255,77,0,0.15)";
+const ACTIVE_BG   = "rgba(255,77,0,0.12)";
 const HOVER_BG    = "rgba(255,255,255,0.04)";
 
 const NAV_ITEMS = [
@@ -53,14 +54,13 @@ export function Sidebar() {
       >
         {/* Logo */}
         <Link href="/dashboard/all-employees" className="flex items-center gap-3 min-w-0">
-          <div
-            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-black select-none"
-            style={{
-              background: "radial-gradient(circle at 35% 35%, #FF7A35 0%, #FF4D00 55%, #CC1F00 100%)",
-            }}
-          >
-            p
-          </div>
+          <Image
+            src="/POP.png"
+            alt="POP logo"
+            width={32}
+            height={32}
+            className="flex-shrink-0 rounded-full select-none"
+          />
           <AnimatePresence initial={false}>
             {!collapsed && (
               <motion.span
@@ -81,9 +81,9 @@ export function Sidebar() {
         <button
           onClick={() => setCollapsed(c => !c)}
           className="ml-auto flex-shrink-0 w-6 h-6 rounded flex items-center justify-center transition-colors"
-          style={{ color: "#8B8A9B" }}
-          onMouseEnter={e => (e.currentTarget.style.color = "#F1F0F5")}
-          onMouseLeave={e => (e.currentTarget.style.color = "#8B8A9B")}
+          style={{ color: "#888888" }}
+          onMouseEnter={e => (e.currentTarget.style.color = "#F5F5F5")}
+          onMouseLeave={e => (e.currentTarget.style.color = "#888888")}
         >
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
@@ -102,7 +102,7 @@ export function Sidebar() {
                 padding: collapsed ? "10px 0" : "10px 12px",
                 justifyContent: collapsed ? "center" : "flex-start",
                 background: isActive ? ACTIVE_BG : "transparent",
-                color: isActive ? "#F1F0F5" : "#8B8A9B",
+                color: isActive ? "#F5F5F5" : "#888888",
               }}
               onMouseEnter={e => {
                 if (!isActive) (e.currentTarget as HTMLElement).style.background = HOVER_BG;
@@ -117,7 +117,7 @@ export function Sidebar() {
                   className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full"
                   style={{
                     height: 20,
-                    background: `linear-gradient(180deg, ${PURPLE}, #EC4899)`,
+                    background: `linear-gradient(180deg, ${PURPLE}, #FF7A35)`,
                   }}
                 />
               )}
@@ -162,7 +162,7 @@ export function Sidebar() {
         >
           <div
             className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-            style={{ background: `linear-gradient(135deg, ${PURPLE}, #EC4899)` }}
+            style={{ background: `linear-gradient(135deg, ${PURPLE}, #FF7A35)` }}
           >
             {getInitials(userName)}
           </div>
@@ -176,8 +176,8 @@ export function Sidebar() {
                 transition={{ duration: 0.14 }}
                 className="min-w-0"
               >
-                <p className="text-xs font-medium text-[#F1F0F5] truncate">{userName}</p>
-                <p className="text-[10px] text-[#8B8A9B]">Admin</p>
+                <p className="text-xs font-medium text-[#F5F5F5] truncate">{userName}</p>
+                <p className="text-[10px] text-[#888888]">Admin</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -189,9 +189,9 @@ export function Sidebar() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
-                className="w-full flex justify-center items-center p-2 rounded-lg transition-colors text-[#8B8A9B]"
+                className="w-full flex justify-center items-center p-2 rounded-lg transition-colors text-[#888888]"
                 onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
-                onMouseLeave={e => (e.currentTarget.style.color = "#8B8A9B")}
+                onMouseLeave={e => (e.currentTarget.style.color = "#888888")}
               >
                 <LogOut size={15} />
               </button>
@@ -201,13 +201,13 @@ export function Sidebar() {
         ) : (
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors text-[#8B8A9B]"
+            className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-sm transition-colors text-[#888888]"
             onMouseEnter={e => {
               e.currentTarget.style.color = "#f87171";
               e.currentTarget.style.background = "rgba(248,113,113,0.06)";
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.color = "#8B8A9B";
+              e.currentTarget.style.color = "#888888";
               e.currentTarget.style.background = "transparent";
             }}
           >

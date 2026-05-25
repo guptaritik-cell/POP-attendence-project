@@ -19,16 +19,16 @@ interface Props {
 }
 
 const TOOLTIP_STYLE = {
-  background: "#22222F",
-  border: "1px solid rgba(124,58,237,0.3)",
+  background: "#222222",
+  border: "1px solid rgba(255,77,0,0.3)",
   borderRadius: 8,
-  color: "#F1F0F5",
+  color: "#F5F5F5",
   fontSize: 12,
 };
 
 export function TeamBarChart({ data, isLoading }: Props) {
   if (isLoading) {
-    return <Skeleton className="h-64 rounded-lg bg-[#22222F]" />;
+    return <Skeleton className="h-64 rounded-lg bg-[#222222]" />;
   }
   if (!data.length) {
     return <p className="text-sm text-[#555] py-8 text-center">No data</p>;
@@ -45,13 +45,13 @@ export function TeamBarChart({ data, isLoading }: Props) {
         <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
         <XAxis
           dataKey="team"
-          tick={{ fill: "#8B8A9B", fontSize: 11 }}
+          tick={{ fill: "#888888", fontSize: 11 }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
           domain={[0, 100]}
-          tick={{ fill: "#8B8A9B", fontSize: 10 }}
+          tick={{ fill: "#888888", fontSize: 10 }}
           axisLine={false}
           tickLine={false}
           tickFormatter={v => `${v}%`}
@@ -59,14 +59,14 @@ export function TeamBarChart({ data, isLoading }: Props) {
         />
         <Tooltip
           contentStyle={TOOLTIP_STYLE}
-          cursor={{ fill: "rgba(124,58,237,0.06)" }}
+          cursor={{ fill: "rgba(255,77,0,0.06)" }}
           formatter={(v: unknown, name: unknown) => [
             `${(v as number).toFixed(1)}%`,
             String(name),
           ]}
         />
         <Legend
-          wrapperStyle={{ fontSize: 11, color: "#8B8A9B", paddingTop: 12 }}
+          wrapperStyle={{ fontSize: 11, color: "#888888", paddingTop: 12 }}
         />
         <Bar
           dataKey="present"
@@ -79,7 +79,7 @@ export function TeamBarChart({ data, isLoading }: Props) {
         <Bar
           dataKey="wfh"
           name="WFH %"
-          fill="#7C3AED"
+          fill="#FF4D00"
           radius={[3, 3, 0, 0]}
           isAnimationActive
           animationDuration={800}

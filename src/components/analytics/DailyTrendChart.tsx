@@ -18,10 +18,10 @@ interface Props {
 }
 
 const TOOLTIP_STYLE = {
-  background: "#22222F",
-  border: "1px solid rgba(124,58,237,0.3)",
+  background: "#222222",
+  border: "1px solid rgba(255,77,0,0.3)",
   borderRadius: 8,
-  color: "#F1F0F5",
+  color: "#F5F5F5",
   fontSize: 12,
 };
 
@@ -29,12 +29,12 @@ const TOOLTIP_STYLE = {
 const CustomDot = (props: Record<string, unknown>) => {
   const { cx, cy, payload } = props as { cx: number; cy: number; payload: DailyTrendPoint };
   if (payload.value === null) return null;
-  return <circle cx={cx} cy={cy} r={3} fill="#7C3AED" strokeWidth={0} />;
+  return <circle cx={cx} cy={cy} r={3} fill="#FF4D00" strokeWidth={0} />;
 };
 
 export function DailyTrendChart({ data, isLoading }: Props) {
   if (isLoading) {
-    return <Skeleton className="h-52 rounded-lg bg-[#22222F]" />;
+    return <Skeleton className="h-52 rounded-lg bg-[#222222]" />;
   }
 
   return (
@@ -43,8 +43,8 @@ export function DailyTrendChart({ data, isLoading }: Props) {
       <svg width={0} height={0} style={{ position: "absolute" }}>
         <defs>
           <linearGradient id="dailyAreaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%"  stopColor="#7C3AED" stopOpacity={0.32} />
-            <stop offset="95%" stopColor="#7C3AED" stopOpacity={0.01} />
+            <stop offset="5%"  stopColor="#FF4D00" stopOpacity={0.32} />
+            <stop offset="95%" stopColor="#FF4D00" stopOpacity={0.01} />
           </linearGradient>
         </defs>
       </svg>
@@ -57,14 +57,14 @@ export function DailyTrendChart({ data, isLoading }: Props) {
           <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
           <XAxis
             dataKey="label"
-            tick={{ fill: "#8B8A9B", fontSize: 10 }}
+            tick={{ fill: "#888888", fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             interval={1}
           />
           <YAxis
             domain={[0, 100]}
-            tick={{ fill: "#8B8A9B", fontSize: 10 }}
+            tick={{ fill: "#888888", fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             tickFormatter={v => `${v}%`}
@@ -94,12 +94,12 @@ export function DailyTrendChart({ data, isLoading }: Props) {
           <Area
             type="monotone"
             dataKey="value"
-            stroke="#7C3AED"
+            stroke="#FF4D00"
             strokeWidth={2}
             fill="url(#dailyAreaGrad)"
             connectNulls={false}
             dot={<CustomDot />}
-            activeDot={{ r: 6, fill: "#7C3AED", strokeWidth: 0 }}
+            activeDot={{ r: 6, fill: "#FF4D00", strokeWidth: 0 }}
             isAnimationActive
             animationDuration={900}
           />

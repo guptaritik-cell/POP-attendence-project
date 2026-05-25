@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAttendanceStore } from "@/lib/store";
 import { getWeekRanges } from "@/lib/attendanceUtils";
 import { FilterBar } from "@/components/FilterBar";
@@ -14,14 +14,20 @@ function StatCard({
 }: { label: string; value: string | number; sub?: string; color?: string }) {
   return (
     <div
-      className="rounded-xl px-5 py-4 flex flex-col gap-1"
-      style={{ background: "#1C1C28", border: "1px solid rgba(124,58,237,0.15)" }}
+      className="rounded-xl px-5 pt-4 pb-3 flex flex-col justify-between"
+      style={{
+        background: "#181818",
+        border: "1px solid rgba(255,77,0,0.15)",
+        height: 100,
+      }}
     >
-      <span className="text-[11px] text-[#8B8A9B] font-medium">{label}</span>
-      <span className="text-2xl font-bold" style={{ color: color ?? "#F1F0F5" }}>
-        {value}
-      </span>
-      {sub && <span className="text-[11px] text-[#555]">{sub}</span>}
+      <span className="text-[11px] text-[#888888] font-medium">{label}</span>
+      <div>
+        <span className="text-[26px] font-bold leading-tight" style={{ color: color ?? "#F5F5F5" }}>
+          {value}
+        </span>
+        {sub && <p className="text-[11px] text-[#555] mt-0.5">{sub}</p>}
+      </div>
     </div>
   );
 }
@@ -67,6 +73,14 @@ export default function AllEmployeesPage() {
 
   const [localSearch,    setLocalSearch]    = useState("");
   const [selectedRecord, setSelectedRecord] = useState<EmployeeMonthRecord | null>(null);
+
+  // When month/year changes, refresh the open detail panel with new data
+  useEffect(() => {
+    if (!monthData || !selectedRecord) return;
+    const refreshed = monthData.records.find(r => r.employeeId === selectedRecord.employeeId);
+    setSelectedRecord(refreshed ?? null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthData]);
 
   const weekRanges: WeekRange[] = useMemo(
     () => (monthData ? getWeekRanges(monthData.columnHeaders) : []),
@@ -143,7 +157,7 @@ export default function AllEmployeesPage() {
         <StatCard
           label={viewMode === "weekly" ? "WFH Days (Week)" : "Total WFH Days"}
           value={stats?.totalWFH ?? "—"}
-          color="#a78bfa"
+          color="#FF7A35"
         />
         <StatCard
           label="Below 75% Attendance"

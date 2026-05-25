@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Eye, EyeOff, Edit2, Loader2 } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -32,51 +33,29 @@ const orbs = [
   },
 ];
 
-/* POP logo — same as landing page */
+/* POP logo — actual brand image */
 function PopLogo({ size = 56 }: { size?: number }) {
   return (
     <motion.div
-      className="relative flex items-center justify-center select-none overflow-hidden"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        background:
-          "radial-gradient(circle at 38% 32%, #FF7A35 0%, #FF4D00 42%, #CC1F00 78%, #8B1500 100%)",
-        boxShadow:
-          "0 0 0 2px rgba(255,122,53,0.2), inset 0 1px 1px rgba(255,255,255,0.18)",
-      }}
+      className="select-none"
+      style={{ width: size, height: size }}
       animate={{
-        boxShadow: [
-          "0 0 0 2px rgba(255,122,53,0.15), 0 0 20px rgba(255,77,0,0.4), inset 0 1px 1px rgba(255,255,255,0.18)",
-          "0 0 0 3px rgba(255,122,53,0.1), 0 0 38px rgba(255,77,0,0.65), inset 0 1px 1px rgba(255,255,255,0.18)",
-          "0 0 0 2px rgba(255,122,53,0.15), 0 0 20px rgba(255,77,0,0.4), inset 0 1px 1px rgba(255,255,255,0.18)",
+        filter: [
+          "drop-shadow(0 0 10px rgba(255,77,0,0.35))",
+          "drop-shadow(0 0 22px rgba(255,77,0,0.65)) drop-shadow(0 0 36px rgba(204,31,0,0.25))",
+          "drop-shadow(0 0 10px rgba(255,77,0,0.35))",
         ],
       }}
       transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
     >
-      <div
-        className="absolute inset-0 rounded-full pointer-events-none"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(255,255,255,0.22) 0%, transparent 55%, rgba(0,0,0,0.15) 100%)",
-        }}
+      <Image
+        src="/POP.png"
+        alt="POP logo"
+        width={size}
+        height={size}
+        className="rounded-full"
+        priority
       />
-      <span
-        style={{
-          fontFamily: "Inter, sans-serif",
-          fontSize: size * 0.52,
-          fontWeight: 900,
-          color: "#FFFFFF",
-          letterSpacing: "-0.03em",
-          lineHeight: 1,
-          position: "relative",
-          top: size * 0.04,
-          textShadow: "0 2px 8px rgba(0,0,0,0.35)",
-        }}
-      >
-        p
-      </span>
     </motion.div>
   );
 }
@@ -100,12 +79,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
   const router = useRouter();
   const emailRef = useRef<HTMLInputElement>(null);
 
   function handleEmailBlur() {
-    setEmailFocused(false);
     if (email && !isValidEmail(email)) {
       setEmailError("Please enter a valid email address");
     } else {
@@ -232,45 +209,44 @@ export default function LoginPage() {
                           </p>
                         </div>
 
-                        {/* Email with floating label */}
-                        <div className="relative">
-                          <motion.label
+                        {/* Email field */}
+                        <div className="flex flex-col gap-1.5">
+                          <label
                             htmlFor="email"
-                            className="absolute left-3 pointer-events-none origin-left"
-                            style={{ top: 10, fontSize: 14, color: "#888" }}
-                            animate={
-                              emailFocused || email
-                                ? { y: -22, scale: 0.8, color: "#FF7A35" }
-                                : { y: 0, scale: 1, color: "#888888" }
-                            }
-                            transition={{ duration: 0.18 }}
+                            className="text-xs font-medium"
+                            style={{ color: "#888888" }}
                           >
                             Email address
-                          </motion.label>
+                          </label>
                           <Input
                             id="email"
                             ref={emailRef}
                             type="email"
+                            autoComplete="email"
                             value={email}
                             onChange={(e) => {
                               setEmail(e.target.value);
                               if (emailError) setEmailError("");
                             }}
-                            onFocus={() => setEmailFocused(true)}
                             onBlur={handleEmailBlur}
                             onKeyDown={(e) => e.key === "Enter" && handleContinue()}
-                            placeholder=" "
-                            className="pt-5 pb-2 bg-[#222] text-[#F5F5F5] placeholder-transparent border-[rgba(255,77,0,0.25)] focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00]"
+                            placeholder="you@company.com"
+                            className="h-10 text-sm bg-[#222] text-[#F5F5F5] placeholder:text-[#555] border-[rgba(255,77,0,0.25)] focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00] autofill:bg-[#222]"
+                            style={{ WebkitBoxShadow: "0 0 0 1000px #222222 inset", WebkitTextFillColor: "#F5F5F5" }}
                           />
-                          {emailError && (
-                            <motion.p
-                              initial={{ opacity: 0, y: -4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="text-xs text-red-400 mt-1"
-                            >
-                              {emailError}
-                            </motion.p>
-                          )}
+                          <AnimatePresence>
+                            {emailError && (
+                              <motion.p
+                                initial={{ opacity: 0, y: -4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -4 }}
+                                transition={{ duration: 0.15 }}
+                                className="text-[11px] text-red-400"
+                              >
+                                {emailError}
+                              </motion.p>
+                            )}
+                          </AnimatePresence>
                         </div>
 
                         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>

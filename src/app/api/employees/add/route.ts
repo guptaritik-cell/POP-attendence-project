@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
+import { addEmployee } from "@/lib/sheets";
 
 interface AddEmployeeBody {
   employeeId: string;
   name: string;
   team: string;
   buLead: string;
-  designation?: string;
 }
 
 export async function POST(req: Request) {
@@ -33,18 +33,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, message: "BU Lead is required" }, { status: 422 });
   }
 
-  // In production, write to Google Sheets
-  if (process.env.NODE_ENV === "production") {
-    try {
-      const { addEmployee } = await import("@/lib/sheets");
-      await addEmployee({ employeeId: employeeId.trim(), name: name.trim(), team: team.trim(), buLead: buLead.trim() });
-    } catch (err) {
-      console.error("addEmployee sheets error:", err);
-      return NextResponse.json({ success: false, message: "Failed to write to spreadsheet" }, { status: 500 });
-    }
-  } else {
-    // Dev: mock — just log
-    console.log("[dev] addEmployee:", { employeeId, name, team, buLead, designation: body.designation });
+  try {
+    await addEmployee({
+      employeeId: employeeId.trim(),
+      name: name.trim(),
+      team: team.trim(),
+      buLead: buLead.trim(),
+    });
+  } catch (err) {
+    console.error("addEmployee sheets error:", err);
+    return NextResponse.json({ success: false, message: "Failed to write to spreadsheet" }, { status: 500 });
   }
 
   return NextResponse.json({

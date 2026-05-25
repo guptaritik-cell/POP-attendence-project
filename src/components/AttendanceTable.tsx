@@ -6,11 +6,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { AttendanceSymbol, EmployeeMonthRecord, WeekRange } from "@/types/attendance";
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const PER_PAGE = 25;
-const HEADER_BG  = "#22222F";
-const ODD_BG     = "#1C1C28";
-const EVEN_BG    = "#1A1A24";
-const HOVER_BG   = "rgba(124,58,237,0.07)";
+const PER_PAGE    = 25;
+const HEADER_BG   = "#222222";
+const ODD_BG      = "#1C1C1C";
+const EVEN_BG     = "#181818";
+const HOVER_EVEN  = "#261508";   // solid warm dark — even rows
+const HOVER_ODD   = "#281808";   // solid warm dark — odd rows
 
 // Sticky column widths (px) — used to compute left offsets
 const STICKY_WIDTHS = [40, 100, 170]; // #, ID, Name
@@ -24,7 +25,7 @@ function Badge({ symbol }: { symbol: AttendanceSymbol }) {
   const styles: Record<string, { bg: string; color: string; label: string }> = {
     P:   { bg: "rgba(22,163,74,0.14)",  color: "#4ade80", label: "P"   },
     A:   { bg: "rgba(220,38,38,0.14)",  color: "#f87171", label: "A"   },
-    WFH: { bg: "rgba(124,58,237,0.14)", color: "#a78bfa", label: "WFH" },
+    WFH: { bg: "rgba(255,77,0,0.14)", color: "#FF7A35", label: "WFH" },
     HD:  { bg: "rgba(217,119,6,0.14)",  color: "#fbbf24", label: "HD"  },
     NHD: { bg: "rgba(100,100,100,0.14)",color: "#888",    label: "NH"  },
     WO:  { bg: "rgba(50,50,50,0.14)",   color: "#555",    label: "WO"  },
@@ -57,8 +58,8 @@ function SortIcon({ col, sortConfig }: {
     return <ChevronsUpDown size={11} className="opacity-30" />;
   }
   return sortConfig.dir === "asc"
-    ? <ChevronUp size={11} className="text-[#7C3AED]" />
-    : <ChevronDown size={11} className="text-[#7C3AED]" />;
+    ? <ChevronUp size={11} className="text-[#FF4D00]" />
+    : <ChevronDown size={11} className="text-[#FF4D00]" />;
 }
 
 // ── Skeleton rows ─────────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ function SkeletonRows({ cols }: { cols: number }) {
         <tr key={i}>
           {Array.from({ length: cols }).map((__, j) => (
             <td key={j} className="px-3 py-2">
-              <Skeleton className="h-3 rounded bg-[#22222F]" style={{ width: j < 3 ? "80%" : "60%" }} />
+              <Skeleton className="h-3 rounded bg-[#222222]" style={{ width: j < 3 ? "80%" : "60%" }} />
             </td>
           ))}
         </tr>
@@ -150,21 +151,27 @@ export function AttendanceTable({
 
   const thStyle: React.CSSProperties = {
     background: HEADER_BG,
-    color: "#8B8A9B",
+    color: "#888888",
     fontSize: 11,
     fontWeight: 500,
     padding: "8px 10px",
     whiteSpace: "nowrap",
-    borderBottom: "1px solid rgba(124,58,237,0.18)",
+    borderBottom: "1px solid rgba(255,77,0,0.18)",
     userSelect: "none",
+    // Vertical sticky — header stays when scrolling down
+    position: "sticky",
+    top: 0,
+    zIndex: 10,
   };
 
   const stickyTh = useCallback(
     (idx: number): React.CSSProperties => ({
       ...thStyle,
+      // Both vertical (top:0) AND horizontal (left:X) sticky
       position: "sticky",
+      top: 0,
       left: STICKY_LEFTS[idx],
-      zIndex: 15,
+      zIndex: 20,   // higher than regular th (10) so corner cells stay on top
       background: HEADER_BG,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -172,7 +179,7 @@ export function AttendanceTable({
   );
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(124,58,237,0.18)" }}>
+    <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,77,0,0.18)" }}>
       {/* Scrollable wrapper */}
       <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 320px)" }}>
         <table
@@ -258,8 +265,10 @@ export function AttendanceTable({
             ) : (
               paged.map((record, idx) => {
                 const isHovered = hoveredId === record.employeeId;
-                const baseBg    = idx % 2 === 0 ? EVEN_BG : ODD_BG;
-                const rowBg     = isHovered ? HOVER_BG : baseBg;
+                const isEven    = idx % 2 === 0;
+                const rowBg     = isHovered
+                  ? (isEven ? HOVER_EVEN : HOVER_ODD)
+                  : (isEven ? EVEN_BG : ODD_BG);
 
                 const tdBase: React.CSSProperties = {
                   padding: "8px 10px",
@@ -292,12 +301,12 @@ export function AttendanceTable({
                       <span style={{ color: "#555" }}>{globalIdx}</span>
                     </td>
                     <td style={stickyTd(1)}>
-                      <span style={{ color: "#a78bfa", fontFamily: "monospace", fontSize: 11 }}>
+                      <span style={{ color: "#FF7A35", fontFamily: "monospace", fontSize: 11 }}>
                         {record.employeeId}
                       </span>
                     </td>
                     <td style={stickyTd(2)}>
-                      <span style={{ color: "#F1F0F5", fontWeight: 500 }}>
+                      <span style={{ color: "#F5F5F5", fontWeight: 500 }}>
                         {record.name}
                       </span>
                     </td>
@@ -310,7 +319,7 @@ export function AttendanceTable({
                       {record.attendancePercent.toFixed(1)}%
                     </td>
                     <td style={tdBase}>{record.totalWFH}</td>
-                    <td style={{ ...tdBase, color: "#a78bfa" }}>
+                    <td style={{ ...tdBase, color: "#FF7A35" }}>
                       {record.wfhPercent.toFixed(1)}%
                     </td>
                     <td style={tdBase}>{record.totalHours}h</td>
@@ -341,16 +350,16 @@ export function AttendanceTable({
       {/* ── Pagination footer ── */}
       <div
         className="flex items-center justify-between px-4 py-3 text-xs"
-        style={{ background: HEADER_BG, borderTop: "1px solid rgba(124,58,237,0.15)" }}
+        style={{ background: HEADER_BG, borderTop: "1px solid rgba(255,77,0,0.15)" }}
       >
-        <span style={{ color: "#8B8A9B" }}>
+        <span style={{ color: "#888888" }}>
           Showing{" "}
-          <span style={{ color: "#F1F0F5" }}>
+          <span style={{ color: "#F5F5F5" }}>
             {Math.min((safePage - 1) * PER_PAGE + 1, sorted.length)}–
             {Math.min(safePage * PER_PAGE, sorted.length)}
           </span>{" "}
           of{" "}
-          <span style={{ color: "#F1F0F5" }}>{sorted.length}</span> employees
+          <span style={{ color: "#F5F5F5" }}>{sorted.length}</span> employees
         </span>
 
         <div className="flex items-center gap-1">
@@ -387,10 +396,10 @@ function PagButton({
       onClick={onClick}
       className="w-7 h-7 flex items-center justify-center rounded text-xs transition-colors"
       style={{
-        background: active ? "rgba(124,58,237,0.3)" : "transparent",
-        color: disabled ? "#444" : active ? "#F1F0F5" : "#8B8A9B",
+        background: active ? "rgba(255,77,0,0.3)" : "transparent",
+        color: disabled ? "#444" : active ? "#F5F5F5" : "#888888",
         cursor: disabled ? "not-allowed" : "pointer",
-        border: active ? "1px solid rgba(124,58,237,0.5)" : "1px solid transparent",
+        border: active ? "1px solid rgba(255,77,0,0.5)" : "1px solid transparent",
       }}
     >
       {label}

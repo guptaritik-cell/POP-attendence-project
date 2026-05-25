@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserPlus, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -49,9 +49,9 @@ function FieldError({ msg }: { msg: string | undefined }) {
 // ── Field label ───────────────────────────────────────────────────────────────
 function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="block text-xs font-medium text-[#8B8A9B] mb-1.5">
+    <label className="block text-xs font-medium text-[#888888] mb-1.5">
       {children}
-      {required && <span className="text-[#7C3AED] ml-0.5">*</span>}
+      {required && <span className="text-[#FF4D00] ml-0.5">*</span>}
     </label>
   );
 }
@@ -62,9 +62,119 @@ function Avatar({ name }: { name: string }) {
   return (
     <div
       className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-      style={{ background: "linear-gradient(135deg, #7C3AED, #EC4899)" }}
+      style={{ background: "linear-gradient(135deg, #FF4D00, #FF7A35)" }}
     >
       {initials || "?"}
+    </div>
+  );
+}
+
+// ── Custom dark-themed team combobox ─────────────────────────────────────────
+function TeamCombobox({
+  value,
+  onChange,
+  options,
+  placeholder,
+  hasError,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  options: string[];
+  placeholder?: string;
+  hasError?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Keep query in sync when value is reset externally (form reset)
+  useEffect(() => { setQuery(value); }, [value]);
+
+  // Close on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = query
+    ? options.filter(o => o.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  function select(val: string) {
+    onChange(val);
+    setQuery(val);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        type="text"
+        value={query}
+        placeholder={placeholder}
+        autoComplete="off"
+        onChange={e => {
+          setQuery(e.target.value);
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        className="w-full h-9 text-sm rounded-md px-3 outline-none transition-colors"
+        style={{
+          background: "#1E1E1E",
+          border: `1px solid ${hasError ? "rgba(239,68,68,0.6)" : "rgba(255,77,0,0.25)"}`,
+          color: "#F5F5F5",
+          boxShadow: "none",
+        }}
+        onFocusCapture={e => {
+          (e.currentTarget as HTMLInputElement).style.border = `1px solid ${hasError ? "rgba(239,68,68,0.6)" : "#FF4D00"}`;
+          (e.currentTarget as HTMLInputElement).style.boxShadow = "0 0 0 1px #FF4D00";
+        }}
+        onBlurCapture={e => {
+          (e.currentTarget as HTMLInputElement).style.border = `1px solid ${hasError ? "rgba(239,68,68,0.6)" : "rgba(255,77,0,0.25)"}`;
+          (e.currentTarget as HTMLInputElement).style.boxShadow = "none";
+        }}
+      />
+      {/* Dropdown */}
+      <AnimatePresence>
+        {open && filtered.length > 0 && (
+          <motion.ul
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.13 }}
+            className="absolute left-0 right-0 z-50 mt-1 rounded-lg overflow-auto"
+            style={{
+              background: "#1E1E1E",
+              border: "1px solid rgba(255,77,0,0.3)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+              maxHeight: 200,
+            }}
+          >
+            {filtered.map(opt => (
+              <li
+                key={opt}
+                onMouseDown={() => select(opt)}
+                className="px-3 py-2 text-sm cursor-pointer transition-colors"
+                style={{ color: opt === value ? "#FF7A35" : "#F5F5F5" }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLLIElement).style.background = "rgba(255,77,0,0.12)";
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLLIElement).style.background = "transparent";
+                }}
+              >
+                {opt}
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -78,7 +188,6 @@ export default function AddMemberPage() {
   const [name, setName]                   = useState("");
   const [team, setTeam]                   = useState("");
   const [buLead, setBuLead]               = useState("");
-  const [designation, setDesignation]     = useState("");
 
   // UI state
   const [errors, setErrors]               = useState<Record<string, string>>({});
@@ -160,7 +269,6 @@ export default function AddMemberPage() {
           name: name.trim(),
           team: team.trim(),
           buLead: buLead.trim(),
-          designation: designation.trim() || undefined,
         }),
       });
 
@@ -178,7 +286,7 @@ export default function AddMemberPage() {
           addedAt: new Date().toISOString(),
         });
         // Reset form
-        setEmployeeId(""); setName(""); setTeam(""); setBuLead(""); setDesignation(""); setErrors({});
+        setEmployeeId(""); setName(""); setTeam(""); setBuLead(""); setErrors({});
       }
     } catch {
       setAlert({ type: "error", message: "Network error — please try again" });
@@ -187,7 +295,7 @@ export default function AddMemberPage() {
     }
   }
 
-  const inputClass = "h-9 text-sm bg-[#1C1C28] border-[rgba(124,58,237,0.25)] text-[#F1F0F5] placeholder:text-[#555] focus:border-[#7C3AED] focus:ring-1 focus:ring-[#7C3AED]";
+  const inputClass = "h-9 text-sm bg-[#1E1E1E] border-[rgba(255,77,0,0.25)] text-[#F5F5F5] placeholder:text-[#555] focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00]";
 
   return (
     <div className="min-h-full px-6 py-8 flex flex-col items-center">
@@ -196,26 +304,26 @@ export default function AddMemberPage() {
       <div
         className="w-full max-w-[560px] rounded-2xl overflow-hidden"
         style={{
-          background: "#1A1A24",
-          border: "1px solid rgba(124,58,237,0.3)",
-          boxShadow: "0 0 40px rgba(124,58,237,0.08)",
+          background: "#181818",
+          border: "1px solid rgba(255,77,0,0.3)",
+          boxShadow: "0 0 40px rgba(255,77,0,0.08)",
         }}
       >
         {/* Header */}
         <div
           className="px-8 py-6"
-          style={{ borderBottom: "1px solid rgba(124,58,237,0.15)" }}
+          style={{ borderBottom: "1px solid rgba(255,77,0,0.15)" }}
         >
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: "rgba(124,58,237,0.15)" }}
+              style={{ background: "rgba(255,77,0,0.15)" }}
             >
-              <UserPlus size={18} className="text-[#a78bfa]" />
+              <UserPlus size={18} className="text-[#FF7A35]" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-[#F1F0F5]">Add New Member</h2>
-              <p className="text-xs text-[#8B8A9B] mt-0.5">
+              <h2 className="text-base font-semibold text-[#F5F5F5]">Add New Member</h2>
+              <p className="text-xs text-[#888888] mt-0.5">
                 New member will be added to all 12 monthly sheets.
               </p>
             </div>
@@ -284,23 +392,19 @@ export default function AddMemberPage() {
             <FieldError msg={errors.name} />
           </div>
 
-          {/* Row 3: Team with datalist */}
+          {/* Row 3: Team combobox */}
           <div>
             <Label required>Team / BU</Label>
-            <Input
+            <TeamCombobox
               value={team}
-              onChange={e => {
-                setTeam(e.target.value);
+              onChange={val => {
+                setTeam(val);
                 if (errors.team) setErrors(p => ({ ...p, team: "" }));
               }}
+              options={allTeams}
               placeholder="Select or type a team"
-              list="teams-datalist"
-              className={inputClass}
-              style={errors.team ? { borderColor: "rgba(239,68,68,0.6)" } : {}}
+              hasError={!!errors.team}
             />
-            <datalist id="teams-datalist">
-              {allTeams.map(t => <option key={t} value={t} />)}
-            </datalist>
             <FieldError msg={errors.team} />
           </div>
 
@@ -320,17 +424,6 @@ export default function AddMemberPage() {
             <FieldError msg={errors.buLead} />
           </div>
 
-          {/* Row 5: Designation (optional) */}
-          <div>
-            <Label>Designation</Label>
-            <Input
-              value={designation}
-              onChange={e => setDesignation(e.target.value)}
-              placeholder="e.g. Software Engineer"
-              className={inputClass}
-            />
-          </div>
-
           {/* Submit */}
           <div
             onClick={!isSubmitting ? handleSubmit : undefined}
@@ -339,7 +432,7 @@ export default function AddMemberPage() {
             <Button
               className="w-full h-10 text-sm font-semibold text-white gap-2"
               style={{
-                background: "linear-gradient(135deg, #7C3AED, #EC4899)",
+                background: "linear-gradient(135deg, #FF4D00, #FF7A35)",
                 border: "none",
                 opacity: isSubmitting ? 0.7 : 1,
                 cursor: isSubmitting ? "not-allowed" : "pointer",
@@ -358,7 +451,7 @@ export default function AddMemberPage() {
       {/* ── Recent additions ── */}
       {recentAdditions.length > 0 && (
         <div className="w-full max-w-[560px] mt-8">
-          <p className="text-xs font-medium text-[#8B8A9B] mb-3">Recent Additions</p>
+          <p className="text-xs font-medium text-[#888888] mb-3">Recent Additions</p>
           <div className="space-y-2">
             {recentAdditions.map((r, i) => (
               <motion.div
@@ -367,18 +460,18 @@ export default function AddMemberPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.04 }}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.12)" }}
+                style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.12)" }}
               >
                 <Avatar name={r.name} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#F1F0F5] truncate">{r.name}</p>
-                  <p className="text-[11px] text-[#8B8A9B]">
+                  <p className="text-sm font-medium text-[#F5F5F5] truncate">{r.name}</p>
+                  <p className="text-[11px] text-[#888888]">
                     {r.employeeId} · {r.team}
                   </p>
                 </div>
                 <span
                   className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
-                  style={{ background: "rgba(124,58,237,0.15)", color: "#a78bfa" }}
+                  style={{ background: "rgba(255,77,0,0.15)", color: "#FF7A35" }}
                 >
                   Added today
                 </span>

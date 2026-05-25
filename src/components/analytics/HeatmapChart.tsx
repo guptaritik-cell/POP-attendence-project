@@ -29,7 +29,7 @@ function rateLabel(rate: number): string {
 
 export function HeatmapChart({ cells, teams, weekCount, isLoading }: Props) {
   if (isLoading) {
-    return <Skeleton className="h-40 rounded-lg bg-[#22222F]" />;
+    return <Skeleton className="h-40 rounded-lg bg-[#222222]" />;
   }
   if (!teams.length) {
     return <p className="text-sm text-[#555] py-4 text-center">No data</p>;
@@ -45,7 +45,7 @@ export function HeatmapChart({ cells, teams, weekCount, isLoading }: Props) {
     <div>
       {/* Column headers */}
       <div
-        className="grid text-[10px] text-[#8B8A9B] mb-1"
+        className="grid text-[10px] text-[#888888] mb-1"
         style={{ gridTemplateColumns: `110px repeat(${weekCount}, 1fr)` }}
       >
         <div />
@@ -66,7 +66,7 @@ export function HeatmapChart({ cells, teams, weekCount, isLoading }: Props) {
             style={{ gridTemplateColumns: `110px repeat(${weekCount}, 1fr)` }}
           >
             {/* Team label */}
-            <span className="text-[11px] text-[#8B8A9B] truncate pr-2">{team}</span>
+            <span className="text-[11px] text-[#888888] truncate pr-2">{team}</span>
 
             {/* Week cells */}
             {weeks.map(w => {

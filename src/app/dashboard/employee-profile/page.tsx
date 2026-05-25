@@ -15,8 +15,8 @@ import type { EmployeeMonthRecord, WeekRange, AttendanceSymbol } from "@/types/a
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TEAM_COLORS: Record<string, string> = {
-  "Founder":     "#7C3AED",
-  "Credit Card": "#EC4899",
+  "Founder":     "#FF4D00",
+  "Credit Card": "#FF7A35",
   "Marketplace": "#06b6d4",
   "Design":      "#f59e0b",
   "Analytics":   "#10b981",
@@ -28,7 +28,7 @@ const TEAM_COLORS: Record<string, string> = {
 const BADGE_STYLES: Record<AttendanceSymbol, { bg: string; color: string; label: string }> = {
   P:   { bg: "rgba(22,163,74,0.18)",   color: "#4ade80", label: "P"   },
   A:   { bg: "rgba(220,38,38,0.18)",   color: "#f87171", label: "A"   },
-  WFH: { bg: "rgba(124,58,237,0.18)",  color: "#a78bfa", label: "WFH" },
+  WFH: { bg: "rgba(255,77,0,0.18)",  color: "#FF7A35", label: "WFH" },
   HD:  { bg: "rgba(217,119,6,0.18)",   color: "#fbbf24", label: "HD"  },
   NHD: { bg: "rgba(100,100,100,0.14)", color: "#666",    label: "NH"  },
   WO:  { bg: "rgba(50,50,50,0.14)",    color: "#444",    label: "WO"  },
@@ -36,10 +36,10 @@ const BADGE_STYLES: Record<AttendanceSymbol, { bg: string; color: string; label:
 };
 
 const TOOLTIP_STYLE = {
-  background: "#22222F",
-  border: "1px solid rgba(124,58,237,0.3)",
+  background: "#222222",
+  border: "1px solid rgba(255,77,0,0.3)",
   borderRadius: 8,
-  color: "#F1F0F5",
+  color: "#F5F5F5",
   fontSize: 12,
 };
 
@@ -82,7 +82,7 @@ function Ring({ value, label, color, size = 80 }: {
     <div className="flex flex-col items-center gap-2">
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          <circle cx={size / 2} cy={size / 2} r={R} fill="none" stroke="#22222F" strokeWidth={6} />
+          <circle cx={size / 2} cy={size / 2} r={R} fill="none" stroke="#222222" strokeWidth={6} />
           <circle
             cx={size / 2} cy={size / 2} r={R} fill="none"
             stroke={color} strokeWidth={6}
@@ -93,10 +93,10 @@ function Ring({ value, label, color, size = 80 }: {
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-sm font-bold text-[#F1F0F5]">{pct.toFixed(0)}%</span>
+          <span className="text-sm font-bold text-[#F5F5F5]">{pct.toFixed(0)}%</span>
         </div>
       </div>
-      <span className="text-xs text-[#8B8A9B]">{label}</span>
+      <span className="text-xs text-[#888888]">{label}</span>
     </div>
   );
 }
@@ -106,11 +106,11 @@ function StatPill({ icon, label, value, color }: {
   icon: React.ReactNode; label: string; value: string | number; color?: string;
 }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "#22222F" }}>
-      <div className="text-[#8B8A9B]">{icon}</div>
+    <div className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "#222222" }}>
+      <div className="text-[#888888]">{icon}</div>
       <div>
-        <p className="text-xs text-[#8B8A9B]">{label}</p>
-        <p className="text-sm font-semibold mt-0.5" style={{ color: color ?? "#F1F0F5" }}>{value}</p>
+        <p className="text-xs text-[#888888]">{label}</p>
+        <p className="text-sm font-semibold mt-0.5" style={{ color: color ?? "#F5F5F5" }}>{value}</p>
       </div>
     </div>
   );
@@ -166,12 +166,12 @@ function AttendanceLog({ record }: { record: EmployeeMonthRecord }) {
   );
 
   return (
-    <div className="overflow-auto max-h-64 rounded-lg" style={{ border: "1px solid rgba(124,58,237,0.12)" }}>
+    <div className="overflow-auto max-h-64 rounded-lg" style={{ border: "1px solid rgba(255,77,0,0.12)" }}>
       <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
         <thead>
-          <tr style={{ background: "#22222F" }}>
+          <tr style={{ background: "#222222" }}>
             {["Date", "Day", "Status"].map(h => (
-              <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "#8B8A9B", fontWeight: 500, whiteSpace: "nowrap", borderBottom: "1px solid rgba(124,58,237,0.15)" }}>
+              <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "#888888", fontWeight: 500, whiteSpace: "nowrap", borderBottom: "1px solid rgba(255,77,0,0.15)" }}>
                 {h}
               </th>
             ))}
@@ -187,12 +187,12 @@ function AttendanceLog({ record }: { record: EmployeeMonthRecord }) {
               <tr
                 key={i}
                 style={{
-                  background: i % 2 === 0 ? "#1A1A24" : "#1C1C28",
+                  background: i % 2 === 0 ? "#181818" : "#1E1E1E",
                   borderBottom: "1px solid rgba(255,255,255,0.03)",
                 }}
               >
                 <td style={{ padding: "7px 12px", color: "#D4D4D4" }}>{datePart}</td>
-                <td style={{ padding: "7px 12px", color: "#8B8A9B" }}>{dayPart}</td>
+                <td style={{ padding: "7px 12px", color: "#888888" }}>{dayPart}</td>
                 <td style={{ padding: "7px 12px" }}>
                   <DayBadge symbol={day.symbol} />
                 </td>
@@ -211,11 +211,11 @@ function EmptyPrompt() {
     <div className="flex flex-col items-center justify-center py-24 gap-4">
       <div
         className="w-16 h-16 rounded-full flex items-center justify-center"
-        style={{ background: "rgba(124,58,237,0.12)" }}
+        style={{ background: "rgba(255,77,0,0.12)" }}
       >
-        <User size={28} className="text-[#7C3AED]" />
+        <User size={28} className="text-[#FF4D00]" />
       </div>
-      <p className="text-sm text-[#8B8A9B]">Search for an employee to view their profile</p>
+      <p className="text-sm text-[#888888]">Search for an employee to view their profile</p>
     </div>
   );
 }
@@ -232,9 +232,26 @@ export default function EmployeeProfilePage() {
     [monthData]
   );
 
-  // Auto-load the first Founder (or first employee overall) when data arrives
+  // Refresh displayed employee whenever monthData changes (month / year switch)
   useEffect(() => {
-    if (!monthData || selectedRecord) return;
+    if (!monthData) return;
+
+    if (selectedRecord) {
+      // Find the same employee in the newly-loaded month's data
+      const refreshed = monthData.records.find(
+        r => r.employeeId === selectedRecord.employeeId
+      );
+      if (refreshed) {
+        setSelectedRecord(refreshed);
+      } else {
+        // Employee not present in this month — clear selection
+        setSelectedRecord(null);
+        setQuery("");
+      }
+      return;
+    }
+
+    // No prior selection — auto-load first Founder (or first employee)
     const founder =
       monthData.records.find(r => r.team === "Founder") ??
       monthData.records[0];
@@ -255,7 +272,7 @@ export default function EmployeeProfilePage() {
   }, [monthData, query]);
 
   const weekChart    = useMemo(() => selectedRecord ? weeklyData(selectedRecord, weekRanges) : [], [selectedRecord, weekRanges]);
-  const teamColor    = selectedRecord ? (TEAM_COLORS[selectedRecord.team] ?? "#7C3AED") : "#7C3AED";
+  const teamColor    = selectedRecord ? (TEAM_COLORS[selectedRecord.team] ?? "#FF4D00") : "#FF4D00";
 
   // Daily presence for area chart (working days only)
   const dailyChart = useMemo(() => {
@@ -289,18 +306,18 @@ export default function EmployeeProfilePage() {
 
       {/* ── Search bar ── */}
       <div
-        className="sticky top-16 z-20 px-6 py-4"
-        style={{ background: "#0F0F13", borderBottom: "1px solid rgba(124,58,237,0.12)" }}
+        className="sticky top-0 z-20 px-6 py-4"
+        style={{ background: "#0D0D0D", borderBottom: "1px solid rgba(255,77,0,0.12)" }}
       >
         <div className="relative max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8B8A9B]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
           <Input
             value={query}
             onChange={e => handleQueryChange(e.target.value)}
             onFocus={() => setShowDropdown(true)}
             onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
             placeholder="Search by name or Employee ID…"
-            className="h-9 pl-9 text-sm bg-[#1A1A24] border-[rgba(124,58,237,0.3)] text-[#F1F0F5] placeholder:text-[#555] focus:border-[#7C3AED] focus:ring-1 focus:ring-[#7C3AED]"
+            className="h-9 pl-9 text-sm bg-[#181818] border-[rgba(255,77,0,0.3)] text-[#F5F5F5] placeholder:text-[#555] focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00]"
           />
 
           {/* Dropdown */}
@@ -312,23 +329,23 @@ export default function EmployeeProfilePage() {
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.15 }}
                 className="absolute top-full mt-1 left-0 right-0 rounded-xl overflow-hidden z-50"
-                style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.3)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+                style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.3)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
               >
                 {suggestions.map(r => (
                   <button
                     key={r.employeeId}
                     onMouseDown={() => selectEmployee(r)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[rgba(124,58,237,0.1)] transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[rgba(255,77,0,0.1)] transition-colors"
                   >
                     <div
                       className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-                      style={{ background: TEAM_COLORS[r.team] ?? "#7C3AED" }}
+                      style={{ background: TEAM_COLORS[r.team] ?? "#FF4D00" }}
                     >
                       {initials(r.name)}
                     </div>
                     <div>
-                      <p className="text-sm text-[#F1F0F5]">{r.name}</p>
-                      <p className="text-[11px] text-[#8B8A9B]">{r.employeeId} · {r.team}</p>
+                      <p className="text-sm text-[#F5F5F5]">{r.name}</p>
+                      <p className="text-[11px] text-[#888888]">{r.employeeId} · {r.team}</p>
                     </div>
                   </button>
                 ))}
@@ -342,9 +359,9 @@ export default function EmployeeProfilePage() {
       <div className="px-6 pt-6">
         {isLoading ? (
           <div className="space-y-4">
-            <Skeleton className="h-28 rounded-xl bg-[#22222F]" />
+            <Skeleton className="h-28 rounded-xl bg-[#222222]" />
             <div className="grid grid-cols-3 gap-4">
-              {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 rounded-xl bg-[#22222F]" />)}
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 rounded-xl bg-[#222222]" />)}
             </div>
           </div>
         ) : !selectedRecord ? (
@@ -362,19 +379,19 @@ export default function EmployeeProfilePage() {
               {/* ── Profile header card ── */}
               <div
                 className="rounded-xl p-6 flex items-center gap-6"
-                style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.2)" }}
+                style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.2)" }}
               >
                 {/* Large avatar */}
                 <div
                   className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold flex-shrink-0"
-                  style={{ background: `linear-gradient(135deg, ${teamColor}, #EC4899)` }}
+                  style={{ background: `linear-gradient(135deg, ${teamColor}, #FF7A35)` }}
                 >
                   {initials(selectedRecord.name)}
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-semibold text-[#F1F0F5]">{selectedRecord.name}</h2>
-                  <p className="text-sm text-[#8B8A9B] mt-0.5">{selectedRecord.employeeId}</p>
+                  <h2 className="text-xl font-semibold text-[#F5F5F5]">{selectedRecord.name}</h2>
+                  <p className="text-sm text-[#888888] mt-0.5">{selectedRecord.employeeId}</p>
 
                   <div className="flex items-center gap-4 mt-3 flex-wrap">
                     <span
@@ -384,7 +401,7 @@ export default function EmployeeProfilePage() {
                       <Users size={11} />
                       {selectedRecord.team}
                     </span>
-                    <span className="text-xs text-[#8B8A9B]">
+                    <span className="text-xs text-[#888888]">
                       BU Lead: <span className="text-[#D4D4D4]">{selectedRecord.buLead}</span>
                     </span>
                   </div>
@@ -398,7 +415,7 @@ export default function EmployeeProfilePage() {
                   >
                     {selectedRecord.attendancePercent.toFixed(1)}%
                   </p>
-                  <p className="text-xs text-[#8B8A9B] mt-1">Attendance</p>
+                  <p className="text-xs text-[#888888] mt-1">Attendance</p>
                 </div>
               </div>
 
@@ -414,7 +431,7 @@ export default function EmployeeProfilePage() {
                   icon={<TrendingUp size={16} />}
                   label="WFH Days"
                   value={selectedRecord.totalWFH}
-                  color="#a78bfa"
+                  color="#FF7A35"
                 />
                 <StatPill
                   icon={<XCircle size={16} />}
@@ -435,12 +452,12 @@ export default function EmployeeProfilePage() {
                 {/* Rings */}
                 <div
                   className="rounded-xl p-5"
-                  style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.15)" }}
+                  style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.15)" }}
                 >
-                  <p className="text-sm font-medium text-[#8B8A9B] mb-5">Performance Overview</p>
+                  <p className="text-sm font-medium text-[#888888] mb-5">Performance Overview</p>
                   <div className="flex items-center justify-around">
-                    <Ring value={selectedRecord.attendancePercent} label="Attendance" color="#7C3AED" size={88} />
-                    <Ring value={selectedRecord.wfhPercent}        label="WFH"        color="#EC4899" size={88} />
+                    <Ring value={selectedRecord.attendancePercent} label="Attendance" color="#FF4D00" size={88} />
+                    <Ring value={selectedRecord.wfhPercent}        label="WFH"        color="#FF7A35" size={88} />
                     <Ring value={selectedRecord.hoursPercent}      label="Hours"      color="#06b6d4" size={88} />
                   </div>
                 </div>
@@ -448,19 +465,19 @@ export default function EmployeeProfilePage() {
                 {/* Weekly bar chart */}
                 <div
                   className="rounded-xl p-5"
-                  style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.15)" }}
+                  style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.15)" }}
                 >
-                  <p className="text-sm font-medium text-[#8B8A9B] mb-3">Week-by-Week Attendance</p>
+                  <p className="text-sm font-medium text-[#888888] mb-3">Week-by-Week Attendance</p>
                   <ResponsiveContainer width="100%" height={140}>
                     <BarChart data={weekChart} barSize={28}>
-                      <XAxis dataKey="week" tick={{ fill: "#8B8A9B", fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <YAxis domain={[0, 100]} tick={{ fill: "#8B8A9B", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} width={32} />
+                      <XAxis dataKey="week" tick={{ fill: "#888888", fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis domain={[0, 100]} tick={{ fill: "#888888", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} width={32} />
                       <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${v}%`, "Attendance"]} />
                       <Bar dataKey="percent" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={700}>
                         {weekChart.map((entry, i) => (
                           <Cell
                             key={i}
-                            fill={entry.percent >= 90 ? "#7C3AED" : entry.percent >= 75 ? "#d97706" : "#ef4444"}
+                            fill={entry.percent >= 90 ? "#FF4D00" : entry.percent >= 75 ? "#d97706" : "#ef4444"}
                           />
                         ))}
                       </Bar>
@@ -472,9 +489,9 @@ export default function EmployeeProfilePage() {
               {/* ── Daily presence area chart ── */}
               <div
                 className="rounded-xl p-5"
-                style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.15)" }}
+                style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.15)" }}
               >
-                <p className="text-sm font-medium text-[#8B8A9B] mb-3">Daily Presence (Working Days)</p>
+                <p className="text-sm font-medium text-[#888888] mb-3">Daily Presence (Working Days)</p>
                 <svg width={0} height={0} style={{ position: "absolute" }}>
                   <defs>
                     <linearGradient id="empAreaGrad" x1="0" y1="0" x2="0" y2="1">
@@ -486,8 +503,8 @@ export default function EmployeeProfilePage() {
                 <ResponsiveContainer width="100%" height={140}>
                   <AreaChart data={dailyChart} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                     <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fill: "#8B8A9B", fontSize: 9 }} axisLine={false} tickLine={false} />
-                    <YAxis domain={[0, 100]} tick={{ fill: "#8B8A9B", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} width={28} />
+                    <XAxis dataKey="label" tick={{ fill: "#888888", fontSize: 9 }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 100]} tick={{ fill: "#888888", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} width={28} />
                     <Tooltip
                       contentStyle={TOOLTIP_STYLE}
                       formatter={(v: unknown, _: unknown, p) => {
@@ -515,9 +532,9 @@ export default function EmployeeProfilePage() {
                 {/* Calendar */}
                 <div
                   className="rounded-xl p-5"
-                  style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.15)" }}
+                  style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.15)" }}
                 >
-                  <p className="text-sm font-medium text-[#8B8A9B] mb-4">Monthly Calendar</p>
+                  <p className="text-sm font-medium text-[#888888] mb-4">Monthly Calendar</p>
                   <CalendarGrid record={selectedRecord} />
 
                   {/* Legend */}
@@ -537,9 +554,9 @@ export default function EmployeeProfilePage() {
                 {/* Attendance log */}
                 <div
                   className="rounded-xl p-5"
-                  style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.15)" }}
+                  style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.15)" }}
                 >
-                  <p className="text-sm font-medium text-[#8B8A9B] mb-4">Attendance Log</p>
+                  <p className="text-sm font-medium text-[#888888] mb-4">Attendance Log</p>
                   <AttendanceLog record={selectedRecord} />
                 </div>
               </div>

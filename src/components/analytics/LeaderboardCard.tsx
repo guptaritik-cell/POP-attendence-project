@@ -6,8 +6,8 @@ import type { EmployeeMonthRecord } from "@/types/attendance";
 
 // Per-team avatar colors
 const TEAM_COLORS: Record<string, string> = {
-  "Founder":      "#7C3AED",
-  "Credit Card":  "#EC4899",
+  "Founder":      "#FF4D00",
+  "Credit Card":  "#FF7A35",
   "Marketplace":  "#06b6d4",
   "Design":       "#f59e0b",
   "Analytics":    "#10b981",
@@ -15,38 +15,51 @@ const TEAM_COLORS: Record<string, string> = {
   "CX":           "#8b5cf6",
   "Finance":      "#f97316",
 };
-const DEFAULT_COLOR = "#7C3AED";
+const DEFAULT_COLOR = "#FF4D00";
 
 const RANK_STYLES = [
   { bg: "linear-gradient(135deg,#F59E0B,#D97706)", color: "#fff" },  // 1st — gold
   { bg: "linear-gradient(135deg,#9CA3AF,#6B7280)", color: "#fff" },  // 2nd — silver
   { bg: "linear-gradient(135deg,#D97706,#92400E)", color: "#fff" },  // 3rd — bronze
-  { bg: "rgba(124,58,237,0.3)",                    color: "#a78bfa" }, // 4th
-  { bg: "rgba(124,58,237,0.3)",                    color: "#a78bfa" }, // 5th
+  { bg: "rgba(255,77,0,0.3)",                    color: "#FF7A35" }, // 4th
+  { bg: "rgba(255,77,0,0.3)",                    color: "#FF7A35" }, // 5th
 ];
 
 interface LeaderboardCardProps {
   title: string;
+  icon: React.ReactNode;
   records: EmployeeMonthRecord[];  // already sorted, max 5
   type: "top" | "bottom";
   isLoading?: boolean;
 }
 
-export function LeaderboardCard({ title, records, type, isLoading }: LeaderboardCardProps) {
-  const barColor   = type === "top" ? "#7C3AED" : "#ef4444";
-  const valueColor = type === "top" ? "#a78bfa"  : "#f87171";
+export function LeaderboardCard({ title, icon, records, type, isLoading }: LeaderboardCardProps) {
+  const barColor   = type === "top" ? "#FF4D00" : "#ef4444";
+  const valueColor = type === "top" ? "#FF7A35"  : "#f87171";
+  const iconBg     = type === "top"
+    ? "linear-gradient(135deg,#F59E0B,#f97316)"
+    : "linear-gradient(135deg,#ef4444,#dc2626)";
 
   return (
     <div
       className="rounded-xl p-5 flex flex-col gap-4"
-      style={{ background: "#1A1A24", border: "1px solid rgba(124,58,237,0.15)" }}
+      style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.15)" }}
     >
-      <p className="text-base font-medium text-[#F1F0F5]">{title}</p>
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div
+          className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+          style={{ background: iconBg }}
+        >
+          {icon}
+        </div>
+        <p className="text-base font-medium text-[#F5F5F5]">{title}</p>
+      </div>
 
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 rounded-lg bg-[#22222F]" />
+            <Skeleton key={i} className="h-10 rounded-lg bg-[#222222]" />
           ))}
         </div>
       ) : records.length === 0 ? (
@@ -91,7 +104,7 @@ export function LeaderboardCard({ title, records, type, isLoading }: Leaderboard
                 {/* Name + team + bar */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-[#F1F0F5] truncate max-w-[110px]">
+                    <span className="text-xs font-medium text-[#F5F5F5] truncate max-w-[110px]">
                       {r.name}
                     </span>
                     <span className="text-xs font-semibold ml-2" style={{ color: valueColor }}>

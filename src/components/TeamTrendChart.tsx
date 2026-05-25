@@ -9,7 +9,7 @@ import type { EmployeeMonthRecord, WeekRange } from "@/types/attendance";
 
 // Consistent palette for multi-team lines
 const TEAM_COLORS = [
-  "#7C3AED","#EC4899","#06b6d4","#10b981",
+  "#FF4D00","#FF7A35","#06b6d4","#10b981",
   "#f59e0b","#ef4444","#8b5cf6","#f97316",
 ];
 
@@ -49,8 +49,8 @@ export function TeamTrendChart({ records, weekRanges, selectedTeam, allTeams }: 
         <svg width={0} height={0} style={{ position: "absolute" }}>
           <defs>
             <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%"  stopColor="#7C3AED" stopOpacity={0.28} />
-              <stop offset="95%" stopColor="#7C3AED" stopOpacity={0.02} />
+              <stop offset="5%"  stopColor="#FF4D00" stopOpacity={0.28} />
+              <stop offset="95%" stopColor="#FF4D00" stopOpacity={0.02} />
             </linearGradient>
           </defs>
         </svg>
@@ -59,13 +59,13 @@ export function TeamTrendChart({ records, weekRanges, selectedTeam, allTeams }: 
             <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
             <XAxis
               dataKey="week"
-              tick={{ fill: "#8B8A9B", fontSize: 11 }}
+              tick={{ fill: "#888888", fontSize: 11 }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
               domain={[0, 100]}
-              tick={{ fill: "#8B8A9B", fontSize: 10 }}
+              tick={{ fill: "#888888", fontSize: 10 }}
               axisLine={false}
               tickLine={false}
               tickFormatter={v => `${v}%`}
@@ -73,10 +73,10 @@ export function TeamTrendChart({ records, weekRanges, selectedTeam, allTeams }: 
             />
             <Tooltip
               contentStyle={{
-                background: "#22222F",
-                border: "1px solid rgba(124,58,237,0.3)",
+                background: "#222222",
+                border: "1px solid rgba(255,77,0,0.3)",
                 borderRadius: 8,
-                color: "#F1F0F5",
+                color: "#F5F5F5",
                 fontSize: 12,
               }}
               formatter={(v) => [`${v}%`, "Avg Attendance"]}
@@ -84,11 +84,11 @@ export function TeamTrendChart({ records, weekRanges, selectedTeam, allTeams }: 
             <Area
               type="monotone"
               dataKey="percent"
-              stroke="#7C3AED"
+              stroke="#FF4D00"
               strokeWidth={2}
               fill="url(#trendFill)"
-              dot={{ fill: "#7C3AED", r: 4, strokeWidth: 0 }}
-              activeDot={{ r: 6, fill: "#7C3AED", strokeWidth: 0 }}
+              dot={{ fill: "#FF4D00", r: 4, strokeWidth: 0 }}
+              activeDot={{ r: 6, fill: "#FF4D00", strokeWidth: 0 }}
               isAnimationActive
               animationDuration={700}
             />
@@ -114,13 +114,13 @@ export function TeamTrendChart({ records, weekRanges, selectedTeam, allTeams }: 
         <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
         <XAxis
           dataKey="week"
-          tick={{ fill: "#8B8A9B", fontSize: 11 }}
+          tick={{ fill: "#888888", fontSize: 11 }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
           domain={[0, 100]}
-          tick={{ fill: "#8B8A9B", fontSize: 10 }}
+          tick={{ fill: "#888888", fontSize: 10 }}
           axisLine={false}
           tickLine={false}
           tickFormatter={v => `${v}%`}
@@ -128,15 +128,15 @@ export function TeamTrendChart({ records, weekRanges, selectedTeam, allTeams }: 
         />
         <Tooltip
           contentStyle={{
-            background: "#22222F",
-            border: "1px solid rgba(124,58,237,0.3)",
+            background: "#222222",
+            border: "1px solid rgba(255,77,0,0.3)",
             borderRadius: 8,
-            color: "#F1F0F5",
+            color: "#F5F5F5",
             fontSize: 12,
           }}
         />
         <Legend
-          wrapperStyle={{ fontSize: 11, color: "#8B8A9B", paddingTop: 8 }}
+          wrapperStyle={{ fontSize: 11, color: "#888888", paddingTop: 8 }}
         />
         {allTeams.map((team, i) => (
           <Line

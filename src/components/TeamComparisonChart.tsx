@@ -26,7 +26,7 @@ export function TeamComparisonChart({ records }: Props) {
     .sort((a, b) => b.percent - a.percent);
 
   const barColor = (pct: number) =>
-    pct >= 90 ? "#7C3AED" : pct >= 75 ? "#a855f7" : "#EC4899";
+    pct >= 90 ? "#4ade80" : pct >= 75 ? "#fbbf24" : "#f87171";
 
   return (
     <div className="relative">
@@ -34,8 +34,8 @@ export function TeamComparisonChart({ records }: Props) {
       <svg width={0} height={0} style={{ position: "absolute" }}>
         <defs>
           <linearGradient id="teamBarGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#7C3AED" />
-            <stop offset="100%" stopColor="#EC4899" />
+            <stop offset="0%" stopColor="#FF4D00" />
+            <stop offset="100%" stopColor="#FF7A35" />
           </linearGradient>
         </defs>
       </svg>
@@ -50,7 +50,7 @@ export function TeamComparisonChart({ records }: Props) {
           <XAxis
             type="number"
             domain={[0, 100]}
-            tick={{ fill: "#8B8A9B", fontSize: 10 }}
+            tick={{ fill: "#888888", fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             tickFormatter={v => `${v}%`}
@@ -64,12 +64,12 @@ export function TeamComparisonChart({ records }: Props) {
             width={96}
           />
           <Tooltip
-            cursor={{ fill: "rgba(124,58,237,0.06)" }}
+            cursor={{ fill: "rgba(255,77,0,0.06)" }}
             contentStyle={{
-              background: "#22222F",
-              border: "1px solid rgba(124,58,237,0.3)",
+              background: "#222222",
+              border: "1px solid rgba(255,77,0,0.3)",
               borderRadius: 8,
-              color: "#F1F0F5",
+              color: "#F5F5F5",
               fontSize: 12,
             }}
             formatter={(v) => [`${v}%`, "Avg Attendance"]}
@@ -77,7 +77,7 @@ export function TeamComparisonChart({ records }: Props) {
           <Bar
             dataKey="percent"
             radius={[0, 4, 4, 0]}
-            background={{ fill: "rgba(124,58,237,0.06)", radius: 4 }}
+            background={{ fill: "rgba(255,77,0,0.06)", radius: 4 }}
             isAnimationActive
             animationDuration={800}
           >
@@ -88,7 +88,7 @@ export function TeamComparisonChart({ records }: Props) {
               dataKey="percent"
               position="right"
               formatter={(v: unknown) => `${v}%`}
-              style={{ fill: "#8B8A9B", fontSize: 11 }}
+              style={{ fill: "#888888", fontSize: 11 }}
             />
           </Bar>
         </BarChart>

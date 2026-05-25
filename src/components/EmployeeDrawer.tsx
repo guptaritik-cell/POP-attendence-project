@@ -23,7 +23,7 @@ function RingProgress({
     <div className="flex flex-col items-center gap-1">
       <div className="relative w-16 h-16">
         <svg width={64} height={64} viewBox="0 0 64 64">
-          <circle cx={32} cy={32} r={R} fill="none" stroke="#22222F" strokeWidth={5} />
+          <circle cx={32} cy={32} r={R} fill="none" stroke="#222222" strokeWidth={5} />
           <circle
             cx={32} cy={32} r={R} fill="none"
             stroke={color} strokeWidth={5}
@@ -34,12 +34,12 @@ function RingProgress({
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[11px] font-bold text-[#F1F0F5]">
+          <span className="text-[11px] font-bold text-[#F5F5F5]">
             {pct.toFixed(0)}%
           </span>
         </div>
       </div>
-      <span className="text-[10px] text-[#8B8A9B]">{label}</span>
+      <span className="text-[10px] text-[#888888]">{label}</span>
     </div>
   );
 }
@@ -66,9 +66,9 @@ function weeklyChartData(record: EmployeeMonthRecord, weekRanges: WeekRange[]) {
 // ── Stat pill ────────────────────────────────────────────────────────────────
 function StatPill({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="flex flex-col gap-0.5 px-3 py-2 rounded-lg" style={{ background: "#22222F" }}>
-      <span className="text-[10px] text-[#8B8A9B]">{label}</span>
-      <span className="text-sm font-semibold text-[#F1F0F5]">{value}</span>
+    <div className="flex flex-col gap-0.5 px-3 py-2 rounded-lg" style={{ background: "#222222" }}>
+      <span className="text-[10px] text-[#888888]">{label}</span>
+      <span className="text-sm font-semibold text-[#F5F5F5]">{value}</span>
     </div>
   );
 }
@@ -87,8 +87,8 @@ export function EmployeeDrawer({ record, weekRanges, onClose }: EmployeeDrawerPr
     <Sheet open={!!record} onOpenChange={open => !open && onClose()}>
       <SheetContent
         side="right"
-        className="w-[480px] border-l border-[rgba(124,58,237,0.2)] p-0 overflow-y-auto"
-        style={{ background: "#1A1A24" }}
+        className="w-[480px] border-l border-[rgba(255,77,0,0.2)] p-0 overflow-y-auto"
+        style={{ background: "#181818" }}
       >
         {record && (
           <>
@@ -98,20 +98,20 @@ export function EmployeeDrawer({ record, weekRanges, onClose }: EmployeeDrawerPr
                 {/* Avatar */}
                 <div
                   className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-base flex-shrink-0"
-                  style={{ background: "linear-gradient(135deg, #7C3AED, #EC4899)" }}
+                  style={{ background: "linear-gradient(135deg, #FF4D00, #FF7A35)" }}
                 >
                   {record.name.split(" ").slice(0, 2).map(p => p[0]).join("")}
                 </div>
                 <div className="min-w-0">
-                  <SheetTitle className="text-base font-semibold text-[#F1F0F5] leading-tight">
+                  <SheetTitle className="text-base font-semibold text-[#F5F5F5] leading-tight">
                     {record.name}
                   </SheetTitle>
-                  <p className="text-xs text-[#8B8A9B] mt-0.5">{record.employeeId}</p>
+                  <p className="text-xs text-[#888888] mt-0.5">{record.employeeId}</p>
                 </div>
               </div>
             </SheetHeader>
 
-            <Separator style={{ background: "rgba(124,58,237,0.15)" }} />
+            <Separator style={{ background: "rgba(255,77,0,0.15)" }} />
 
             <div className="px-6 py-5 space-y-6">
               {/* Details */}
@@ -122,21 +122,21 @@ export function EmployeeDrawer({ record, weekRanges, onClose }: EmployeeDrawerPr
                 <StatPill label="Absent Days"  value={record.totalAbsent} />
               </div>
 
-              <Separator style={{ background: "rgba(124,58,237,0.15)" }} />
+              <Separator style={{ background: "rgba(255,77,0,0.15)" }} />
 
               {/* Circular progress rings */}
               <div>
-                <p className="text-xs font-medium text-[#8B8A9B] mb-4">Attendance Overview</p>
+                <p className="text-xs font-medium text-[#888888] mb-4">Attendance Overview</p>
                 <div className="flex items-center justify-around">
                   <RingProgress
                     value={record.attendancePercent}
                     label="Attendance"
-                    color="#7C3AED"
+                    color="#FF4D00"
                   />
                   <RingProgress
                     value={record.wfhPercent}
                     label="WFH"
-                    color="#EC4899"
+                    color="#FF7A35"
                   />
                   <RingProgress
                     value={record.hoursPercent}
@@ -146,7 +146,7 @@ export function EmployeeDrawer({ record, weekRanges, onClose }: EmployeeDrawerPr
                 </div>
               </div>
 
-              <Separator style={{ background: "rgba(124,58,237,0.15)" }} />
+              <Separator style={{ background: "rgba(255,77,0,0.15)" }} />
 
               {/* Quick stats row */}
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -155,29 +155,29 @@ export function EmployeeDrawer({ record, weekRanges, onClose }: EmployeeDrawerPr
                   { label: "WFH Days",  value: record.totalWFH },
                   { label: "Total Hrs", value: record.totalHours },
                 ].map(s => (
-                  <div key={s.label} className="rounded-lg py-2" style={{ background: "#22222F" }}>
-                    <p className="text-base font-bold text-[#F1F0F5]">{s.value}</p>
-                    <p className="text-[10px] text-[#8B8A9B]">{s.label}</p>
+                  <div key={s.label} className="rounded-lg py-2" style={{ background: "#222222" }}>
+                    <p className="text-base font-bold text-[#F5F5F5]">{s.value}</p>
+                    <p className="text-[10px] text-[#888888]">{s.label}</p>
                   </div>
                 ))}
               </div>
 
-              <Separator style={{ background: "rgba(124,58,237,0.15)" }} />
+              <Separator style={{ background: "rgba(255,77,0,0.15)" }} />
 
               {/* Weekly bar chart */}
               <div>
-                <p className="text-xs font-medium text-[#8B8A9B] mb-3">Week-by-Week Attendance</p>
+                <p className="text-xs font-medium text-[#888888] mb-3">Week-by-Week Attendance</p>
                 <ResponsiveContainer width="100%" height={140}>
                   <BarChart data={chartData} barSize={24}>
                     <XAxis
                       dataKey="week"
-                      tick={{ fill: "#8B8A9B", fontSize: 11 }}
+                      tick={{ fill: "#888888", fontSize: 11 }}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis
                       domain={[0, 100]}
-                      tick={{ fill: "#8B8A9B", fontSize: 10 }}
+                      tick={{ fill: "#888888", fontSize: 10 }}
                       axisLine={false}
                       tickLine={false}
                       tickFormatter={v => `${v}%`}
@@ -185,10 +185,10 @@ export function EmployeeDrawer({ record, weekRanges, onClose }: EmployeeDrawerPr
                     />
                     <RechartTooltip
                       contentStyle={{
-                        background: "#22222F",
-                        border: "1px solid rgba(124,58,237,0.3)",
+                        background: "#222222",
+                        border: "1px solid rgba(255,77,0,0.3)",
                         borderRadius: 8,
-                        color: "#F1F0F5",
+                        color: "#F5F5F5",
                         fontSize: 12,
                       }}
                       formatter={(v) => [`${v}%`, "Attendance"]}
@@ -199,7 +199,7 @@ export function EmployeeDrawer({ record, weekRanges, onClose }: EmployeeDrawerPr
                           key={i}
                           fill={
                             entry.percent >= 90
-                              ? "#7C3AED"
+                              ? "#FF4D00"
                               : entry.percent >= 75
                               ? "#d97706"
                               : "#ef4444"

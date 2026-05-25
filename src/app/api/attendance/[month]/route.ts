@@ -5,8 +5,13 @@ const MONTH_NAMES = [
   "july","august","september","october","november","december",
 ];
 
+// The spreadsheet only contains data for ONE specific year.
+// If the client requests a different year we return empty data
+// rather than silently showing the wrong year's records.
+const SHEET_YEAR = new Date().getFullYear(); // 2026 — matches current Google Sheet
+
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ month: string }> }
 ) {
   const { month } = await params;
@@ -16,9 +21,27 @@ export async function GET(
     return NextResponse.json({ error: "Invalid month" }, { status: 400 });
   }
 
+  // Read year from query string (sent by DataSync)
+  const url  = new URL(req.url);
+  const year = parseInt(url.searchParams.get("year") ?? String(SHEET_YEAR), 10);
+
+  // If the requested year doesn't match the spreadsheet's year, return empty data
+  if (year !== SHEET_YEAR) {
+    return NextResponse.json(
+      {
+        month: month.charAt(0).toUpperCase() + month.slice(1),
+        monthIndex,
+        year,
+        records: [],
+        columnHeaders: [],
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
   try {
     const { getMonthData } = await import("@/lib/sheets");
-    const data = await getMonthData(monthIndex);
+    const data = await getMonthData(monthIndex, year);
     return NextResponse.json(data, {
       headers: { "Cache-Control": "no-store" },
     });
