@@ -1,9 +1,13 @@
 export type AttendanceSymbol = "P" | "A" | "HD" | "WFH" | "NHD" | "WO" | "";
 
 export interface DayRecord {
-  date: string;        // "1-Mar (Sun)"
-  dayNumber: number;   // 1
+  date: string;          // "1-Mar (Sun)" or "1 Th"
+  dayNumber: number;     // 1
   symbol: AttendanceSymbol;
+  clockIn?: string;      // "10:00"
+  clockOut?: string;     // "19:05"
+  hoursWorked?: string;  // "08:55" (raw string from sheet)
+  hoursMinutes?: number; // 535 (parsed minutes, for computation)
 }
 
 export interface Employee {

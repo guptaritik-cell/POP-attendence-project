@@ -123,9 +123,9 @@ export default function AllEmployeesPage() {
     if (!displayRecords.length) return null;
     const total          = displayRecords.length;
     const avgAtt         = displayRecords.reduce((s, r) => s + r.attendancePercent, 0) / total;
-    const totalWFH       = displayRecords.reduce((s, r) => s + r.totalWFH, 0);
+    const workingDays    = displayRecords[0]?.workingDays ?? 0;
     const belowThreshold = displayRecords.filter(r => r.attendancePercent < 75).length;
-    return { total, avgAtt, totalWFH, belowThreshold };
+    return { total, avgAtt, workingDays, belowThreshold };
   }, [displayRecords]);
 
   return (
@@ -155,9 +155,8 @@ export default function AllEmployeesPage() {
           }
         />
         <StatCard
-          label={viewMode === "weekly" ? "WFH Days (Week)" : "Total WFH Days"}
-          value={stats?.totalWFH ?? "—"}
-          color="#FF7A35"
+          label={viewMode === "weekly" ? "Working Days (Week)" : "Working Days This Month"}
+          value={stats?.workingDays ?? "—"}
         />
         <StatCard
           label="Below 75% Attendance"

@@ -165,22 +165,39 @@ function AttendanceLog({ record }: { record: EmployeeMonthRecord }) {
     d => d.symbol !== "WO" && d.symbol !== "NHD" && d.symbol !== ""
   );
 
+  // Only show clock columns if at least one day has clock data
+  const hasClockData = workingDays.some(d => d.clockIn || d.clockOut || d.hoursWorked);
+
+  const thStyle: React.CSSProperties = {
+    padding: "8px 12px",
+    textAlign: "left",
+    color: "#888888",
+    fontWeight: 500,
+    whiteSpace: "nowrap",
+    borderBottom: "1px solid rgba(255,77,0,0.15)",
+  };
+
   return (
     <div className="overflow-auto max-h-64 rounded-lg" style={{ border: "1px solid rgba(255,77,0,0.12)" }}>
       <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
         <thead>
           <tr style={{ background: "#222222" }}>
-            {["Date", "Day", "Status"].map(h => (
-              <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "#888888", fontWeight: 500, whiteSpace: "nowrap", borderBottom: "1px solid rgba(255,77,0,0.15)" }}>
-                {h}
-              </th>
-            ))}
+            <th style={thStyle}>Date</th>
+            <th style={thStyle}>Day</th>
+            <th style={thStyle}>Status</th>
+            {hasClockData && (
+              <>
+                <th style={thStyle}>Clock In</th>
+                <th style={thStyle}>Clock Out</th>
+                <th style={thStyle}>Hours</th>
+              </>
+            )}
           </tr>
         </thead>
         <tbody>
           {workingDays.map((day, i) => {
-            const s = BADGE_STYLES[day.symbol] ?? BADGE_STYLES[""];
-            const parts = day.date.split(" ");
+            const s      = BADGE_STYLES[day.symbol] ?? BADGE_STYLES[""];
+            const parts   = day.date.split(" ");
             const datePart = parts[0] ?? day.date;
             const dayPart  = (parts[1] ?? "").replace(/[()]/g, "");
             return (
@@ -196,6 +213,19 @@ function AttendanceLog({ record }: { record: EmployeeMonthRecord }) {
                 <td style={{ padding: "7px 12px" }}>
                   <DayBadge symbol={day.symbol} />
                 </td>
+                {hasClockData && (
+                  <>
+                    <td style={{ padding: "7px 12px", color: "#aaaaaa", fontVariantNumeric: "tabular-nums" }}>
+                      {day.clockIn || <span style={{ color: "#444" }}>—</span>}
+                    </td>
+                    <td style={{ padding: "7px 12px", color: "#aaaaaa", fontVariantNumeric: "tabular-nums" }}>
+                      {day.clockOut || <span style={{ color: "#444" }}>—</span>}
+                    </td>
+                    <td style={{ padding: "7px 12px", color: day.hoursWorked ? "#06b6d4" : "#444", fontVariantNumeric: "tabular-nums" }}>
+                      {day.hoursWorked || "—"}
+                    </td>
+                  </>
+                )}
               </tr>
             );
           })}
@@ -273,6 +303,7 @@ export default function EmployeeProfilePage() {
 
   const weekChart    = useMemo(() => selectedRecord ? weeklyData(selectedRecord, weekRanges) : [], [selectedRecord, weekRanges]);
   const teamColor    = selectedRecord ? (TEAM_COLORS[selectedRecord.team] ?? "#FF4D00") : "#FF4D00";
+
 
   // Daily presence for area chart (working days only)
   const dailyChart = useMemo(() => {
@@ -442,7 +473,7 @@ export default function EmployeeProfilePage() {
                 <StatPill
                   icon={<Clock size={16} />}
                   label="Total Hours"
-                  value={`${selectedRecord.totalHours}h`}
+                  value={`${selectedRecord.totalHours.toFixed(1)}h`}
                   color="#94a3b8"
                 />
               </div>

@@ -222,10 +222,10 @@ export default function TeamViewPage() {
     if (!baseRecs.length) return null;
     const total = baseRecs.length;
     const avgAtt = baseRecs.reduce((s, r) => s + r.attendancePercent, 0) / total;
-    const totalWFH = baseRecs.reduce((s, r) => s + r.totalWFH, 0);
+    const workingDays = baseRecs[0]?.workingDays ?? 0;
     const totalAbsent = baseRecs.reduce((s, r) => s + r.totalAbsent, 0);
     const spark = monthData ? dailyTrend(teamRecords, monthData.columnHeaders) : [];
-    return { total, avgAtt, totalWFH, totalAbsent, spark };
+    return { total, avgAtt, workingDays, totalAbsent, spark };
   }, [teamRecords, monthData, viewMode, activeWeekRange]);
 
   const attColor = (pct: number) =>
@@ -332,9 +332,8 @@ export default function TeamViewPage() {
         </motion.div>
         <motion.div variants={cardVariants}>
           <StatCard
-            label={viewMode === "weekly" ? "WFH Days (Week)" : "Total WFH Days"}
-            value={stats?.totalWFH ?? "—"}
-            color="#FF7A35"
+            label={viewMode === "weekly" ? "Working Days (Week)" : "Working Days This Month"}
+            value={stats?.workingDays ?? "—"}
           />
         </motion.div>
         <motion.div variants={cardVariants}>

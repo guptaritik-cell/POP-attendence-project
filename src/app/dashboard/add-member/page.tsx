@@ -179,6 +179,56 @@ function TeamCombobox({
   );
 }
 
+// ── Month / Year constants ─────────────────────────────────────────────────────
+const MONTH_LABELS = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
+];
+
+const CURRENT_YEAR  = new Date().getFullYear();
+const YEAR_OPTIONS  = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1];
+
+// ── Inline select (dark-themed, matches form inputs) ──────────────────────────
+function DarkSelect({
+  value, onChange, options, hasError,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { label: string; value: string }[];
+  hasError?: boolean;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      style={{
+        width: "100%",
+        height: 36,
+        background: "#1E1E1E",
+        border: `1px solid ${hasError ? "rgba(239,68,68,0.6)" : "rgba(255,77,0,0.25)"}`,
+        borderRadius: 6,
+        color: "#F5F5F5",
+        fontSize: 14,
+        padding: "0 10px",
+        outline: "none",
+        cursor: "pointer",
+        appearance: "none",
+        WebkitAppearance: "none",
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 10px center",
+        paddingRight: 32,
+      }}
+    >
+      {options.map(o => (
+        <option key={o.value} value={o.value} style={{ background: "#1E1E1E" }}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AddMemberPage() {
   const { monthData } = useAttendanceStore();
@@ -188,6 +238,8 @@ export default function AddMemberPage() {
   const [name, setName]                   = useState("");
   const [team, setTeam]                   = useState("");
   const [buLead, setBuLead]               = useState("");
+  const [joinMonth, setJoinMonth]         = useState(String(new Date().getMonth()));   // 0-indexed
+  const [joinYear,  setJoinYear]          = useState(String(CURRENT_YEAR));
 
   // UI state
   const [errors, setErrors]               = useState<Record<string, string>>({});
@@ -269,6 +321,8 @@ export default function AddMemberPage() {
           name: name.trim(),
           team: team.trim(),
           buLead: buLead.trim(),
+          joinMonth: parseInt(joinMonth, 10),
+          joinYear:  parseInt(joinYear,  10),
         }),
       });
 
@@ -285,7 +339,7 @@ export default function AddMemberPage() {
           buLead: buLead.trim(),
           addedAt: new Date().toISOString(),
         });
-        // Reset form
+        // Reset form (keep month/year as-is — likely to add more in same period)
         setEmployeeId(""); setName(""); setTeam(""); setBuLead(""); setErrors({});
       }
     } catch {
@@ -422,6 +476,26 @@ export default function AddMemberPage() {
               style={errors.buLead ? { borderColor: "rgba(239,68,68,0.6)" } : {}}
             />
             <FieldError msg={errors.buLead} />
+          </div>
+
+          {/* Row 5: Joining Month & Year */}
+          <div>
+            <Label required>Joining Month & Year</Label>
+            <p className="text-[11px] text-[#666666] mb-2">
+              Employee will be added to all sheets from this month onwards.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <DarkSelect
+                value={joinMonth}
+                onChange={setJoinMonth}
+                options={MONTH_LABELS.map((label, i) => ({ label, value: String(i) }))}
+              />
+              <DarkSelect
+                value={joinYear}
+                onChange={setJoinYear}
+                options={YEAR_OPTIONS.map(y => ({ label: String(y), value: String(y) }))}
+              />
+            </div>
           </div>
 
           {/* Submit */}

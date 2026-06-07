@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  TrendingUp, CalendarDays, UserCheck, Home, UserX, Star,
+  TrendingUp, CalendarDays, UserCheck, Clock, UserX, Star,
   ArrowUp, Trophy, AlertTriangle,
 } from "lucide-react";
 import {
@@ -245,17 +245,24 @@ export default function AnalyticsPage() {
   // ── Section 1: Key metrics ────────────────────────────────────────────────
   const metrics = useMemo((): StatMeta[] => {
     if (!records.length) return [];
-    const n = records.length;
-    const avgAtt  = records.reduce((s, r) => s + r.attendancePercent, 0) / n;
-    // Working days this month = max across all employees (eliminates mid-month joiners pulling it down)
-    const workDays = Math.max(...records.map(r => r.workingDays));
+    const n        = records.length;
+    const avgAtt   = records.reduce((s, r) => s + r.attendancePercent, 0) / n;
+    // All records carry the same company working days (computed from calendar in sheets.ts)
+    const workDays = records[0]?.workingDays ?? 0;
     const totalP   = records.reduce((s, r) => s + r.totalPresent, 0);
-    const totalWFH = records.reduce((s, r) => s + r.totalWFH, 0);
     const totalA   = records.reduce((s, r) => s + r.totalAbsent, 0);
     // Perfect attendance: zero absences AND zero half-days
     const perfect  = records.filter(r => r.totalAbsent === 0 && r.totalHalfDay === 0).length;
 
-    const attColor = avgAtt >= 90 ? "#4ade80" : avgAtt >= 75 ? "#fbbf24" : "#f87171";
+    // Total working hours across all employees
+    const rawHours = records.reduce((s, r) => s + r.totalHours, 0);
+    // Average hours % — hoursPercent per record already uses the correct denominator
+    // (A + P + WFH + HD) × 9, covering both current and completed months automatically
+    const avgHoursPct = records.reduce((s, r) => s + r.hoursPercent, 0) / n;
+
+    const attColor   = avgAtt    >= 90 ? "#4ade80" : avgAtt    >= 75 ? "#fbbf24" : "#f87171";
+    const hoursColor = avgHoursPct >= 90 ? "#4ade80" : avgHoursPct >= 75 ? "#fbbf24" : "#f87171";
+
     return [
       {
         label: "Company-wide Avg Attendance",
@@ -278,11 +285,11 @@ export default function AnalyticsPage() {
         color: "#4ade80",
       },
       {
-        label: "Total WFH Days",
-        value: String(totalWFH),
-        icon: <Home size={18} className="text-white" />,
+        label: "Total Working Hours",
+        value: `${Math.round(rawHours).toLocaleString()}h`,
+        icon: <Clock size={18} className="text-white" />,
         iconBg: "linear-gradient(135deg,#06b6d4,#0ea5e9)",
-        color: "#FF7A35",
+        color: hoursColor,
       },
       {
         label: "Total Absences",
