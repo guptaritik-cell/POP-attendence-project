@@ -395,7 +395,7 @@ export async function addEmployee(
   employee: Employee,
   joinMonth: number,   // 0-indexed: 0 = January … 11 = December
   joinYear:  number,
-  joinDate:  number,   // 1-indexed day of the joining month (1–31)
+  joinDate:  number = 1,   // 1-indexed day of the joining month (1–31). Defaults to 1
 ): Promise<void> {
   const sheetId = process.env.GOOGLE_SHEET_ID;
   if (!sheetId) throw new Error("GOOGLE_SHEET_ID is not set");
