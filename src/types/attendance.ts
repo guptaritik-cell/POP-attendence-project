@@ -1,4 +1,4 @@
-export type AttendanceSymbol = "P" | "A" | "HD" | "WFH" | "NHD" | "WO" | "";
+export type AttendanceSymbol = "P" | "A" | "HD" | "WFH" | "NHD" | "WO" | "ML" | "SL" | "PL" | "";
 
 export interface DayRecord {
   date: string;          // "1-Mar (Sun)" or "1 Th"
@@ -21,8 +21,11 @@ export interface EmployeeMonthRecord extends Employee {
   days: DayRecord[];
   totalPresent: number;       // computed
   totalWFH: number;           // computed
-  totalAbsent: number;        // computed
+  totalAbsent: number;        // computed (A + ML + SL + PL)
   totalHalfDay: number;       // computed
+  totalML: number;            // Menstrual Leave days
+  totalSL: number;            // Sick Leave days
+  totalPL: number;            // Paid Leave days
   workingDays: number;        // computed (excludes WO, NHD)
   attendancePercent: number;  // computed
   wfhPercent: number;         // computed

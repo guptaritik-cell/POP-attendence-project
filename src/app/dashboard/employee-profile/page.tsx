@@ -32,6 +32,9 @@ const BADGE_STYLES: Record<AttendanceSymbol, { bg: string; color: string; label:
   HD:  { bg: "rgba(217,119,6,0.18)",   color: "#fbbf24", label: "HD"  },
   NHD: { bg: "rgba(100,100,100,0.14)", color: "#666",    label: "NH"  },
   WO:  { bg: "rgba(50,50,50,0.14)",    color: "#444",    label: "WO"  },
+  ML:  { bg: "rgba(236,72,153,0.18)",  color: "#f472b6", label: "ML"  },
+  SL:  { bg: "rgba(251,146,60,0.18)",  color: "#fb923c", label: "SL"  },
+  PL:  { bg: "rgba(234,179,8,0.18)",   color: "#eab308", label: "PL"  },
   "":  { bg: "transparent",            color: "#333",    label: "—"   },
 };
 

@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Users, UsersRound, BarChart3, UserCircle, UserPlus,
+  Users, UsersRound, BarChart3, UserCircle, UserPlus, FilePlus2,
   ChevronLeft, ChevronRight, LogOut,
 } from "lucide-react";
 import {
@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { label: "Analytics",        href: "/dashboard/analytics",        Icon: BarChart3 },
   { label: "Employee Profile", href: "/dashboard/employee-profile", Icon: UserCircle },
   { label: "Add Member",       href: "/dashboard/add-member",       Icon: UserPlus },
+  { label: "Add Attendance",  href: "/dashboard/add-attendance",  Icon: FilePlus2 },
 ];
 
 function getInitials(name: string) {

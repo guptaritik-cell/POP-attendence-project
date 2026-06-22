@@ -23,12 +23,16 @@ const STICKY_LEFTS  = STICKY_WIDTHS.reduce<number[]>((acc, w, i) => {
 // ── Attendance badge ───────────────────────────────────────────────────────
 function Badge({ symbol }: { symbol: AttendanceSymbol }) {
   const styles: Record<string, { bg: string; color: string; label: string }> = {
-    P:   { bg: "rgba(22,163,74,0.14)",  color: "#4ade80", label: "P"   },
-    A:   { bg: "rgba(220,38,38,0.14)",  color: "#f87171", label: "A"   },
-    WFH: { bg: "rgba(255,77,0,0.14)", color: "#FF7A35", label: "WFH" },
-    HD:  { bg: "rgba(217,119,6,0.14)",  color: "#fbbf24", label: "HD"  },
-    NHD: { bg: "rgba(100,100,100,0.14)",color: "#888",    label: "NH"  },
-    WO:  { bg: "rgba(50,50,50,0.14)",   color: "#555",    label: "WO"  },
+    P:   { bg: "rgba(22,163,74,0.14)",   color: "#4ade80", label: "P"   },
+    A:   { bg: "rgba(220,38,38,0.14)",   color: "#f87171", label: "A"   },
+    WFH: { bg: "rgba(255,77,0,0.14)",    color: "#FF7A35", label: "WFH" },
+    HD:  { bg: "rgba(217,119,6,0.14)",   color: "#fbbf24", label: "HD"  },
+    NHD: { bg: "rgba(100,100,100,0.14)", color: "#888",    label: "NH"  },
+    WO:  { bg: "rgba(50,50,50,0.14)",    color: "#555",    label: "WO"  },
+    // Leave types — each visually distinct but all treated as absent
+    ML:  { bg: "rgba(236,72,153,0.14)",  color: "#f472b6", label: "ML"  },
+    SL:  { bg: "rgba(251,146,60,0.14)",  color: "#fb923c", label: "SL"  },
+    PL:  { bg: "rgba(234,179,8,0.14)",   color: "#eab308", label: "PL"  },
   };
   if (!symbol) return <span className="text-[#444]">—</span>;
   const s = styles[symbol] ?? styles.NHD;

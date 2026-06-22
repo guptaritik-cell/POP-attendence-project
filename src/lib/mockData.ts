@@ -38,6 +38,7 @@ function buildDays(pattern: AttendanceSymbol[]): DayRecord[] {
 // ── Compute all totals from days array ──────────────────────────────────────
 function computeTotals(days: DayRecord[]) {
   let totalPresent = 0, totalWFH = 0, totalAbsent = 0, totalHalfDay = 0, workingDays = 0;
+  let totalML = 0, totalSL = 0, totalPL = 0;
   for (const d of days) {
     if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "") continue;
     workingDays++;
@@ -45,12 +46,15 @@ function computeTotals(days: DayRecord[]) {
     else if (d.symbol === "WFH") { totalPresent += 1; totalWFH++; }
     else if (d.symbol === "HD")  { totalPresent += 0.5; totalHalfDay++; }
     else if (d.symbol === "A")   { totalAbsent++; }
+    else if (d.symbol === "ML")  { totalAbsent++; totalML++; }
+    else if (d.symbol === "SL")  { totalAbsent++; totalSL++; }
+    else if (d.symbol === "PL")  { totalAbsent++; totalPL++; }
   }
   const attendancePercent = workingDays > 0 ? (totalPresent / workingDays) * 100 : 0;
   const wfhPercent        = workingDays > 0 ? (totalWFH / workingDays) * 100 : 0;
   const totalHours        = totalPresent * 8;
   const hoursPercent      = workingDays > 0 ? (totalHours / (workingDays * 8)) * 100 : 0;
-  return { totalPresent, totalWFH, totalAbsent, totalHalfDay, workingDays, attendancePercent, wfhPercent, totalHours, hoursPercent };
+  return { totalPresent, totalWFH, totalAbsent, totalHalfDay, totalML, totalSL, totalPL, workingDays, attendancePercent, wfhPercent, totalHours, hoursPercent };
 }
 
 function makeRecord(

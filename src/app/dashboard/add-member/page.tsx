@@ -188,6 +188,10 @@ const MONTH_LABELS = [
 const CURRENT_YEAR  = new Date().getFullYear();
 const YEAR_OPTIONS  = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1];
 
+function daysInMonth(month: number, year: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
 // ── Inline select (dark-themed, matches form inputs) ──────────────────────────
 function DarkSelect({
   value, onChange, options, hasError,
@@ -240,6 +244,7 @@ export default function AddMemberPage() {
   const [buLead, setBuLead]               = useState("");
   const [joinMonth, setJoinMonth]         = useState(String(new Date().getMonth()));   // 0-indexed
   const [joinYear,  setJoinYear]          = useState(String(CURRENT_YEAR));
+  const [joinDate,  setJoinDate]          = useState(String(new Date().getDate()));    // 1-indexed
 
   // UI state
   const [errors, setErrors]               = useState<Record<string, string>>({});
@@ -259,6 +264,12 @@ export default function AddMemberPage() {
     if (teamLeadMap[team]) setBuLead(teamLeadMap[team]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [team]);
+
+  // Clamp joinDate when month/year changes (e.g. Feb has only 28/29 days)
+  useEffect(() => {
+    const maxDay = daysInMonth(parseInt(joinMonth, 10), parseInt(joinYear, 10));
+    if (parseInt(joinDate, 10) > maxDay) setJoinDate(String(maxDay));
+  }, [joinMonth, joinYear, joinDate]);
 
   // Load recent additions from localStorage
   useEffect(() => {
@@ -323,6 +334,7 @@ export default function AddMemberPage() {
           buLead: buLead.trim(),
           joinMonth: parseInt(joinMonth, 10),
           joinYear:  parseInt(joinYear,  10),
+          joinDate:  parseInt(joinDate,  10),
         }),
       });
 
@@ -339,7 +351,7 @@ export default function AddMemberPage() {
           buLead: buLead.trim(),
           addedAt: new Date().toISOString(),
         });
-        // Reset form (keep month/year as-is — likely to add more in same period)
+        // Reset form (keep month/year/date as-is — likely to add more in same period)
         setEmployeeId(""); setName(""); setTeam(""); setBuLead(""); setErrors({});
       }
     } catch {
@@ -378,7 +390,7 @@ export default function AddMemberPage() {
             <div>
               <h2 className="text-base font-semibold text-[#F5F5F5]">Add New Member</h2>
               <p className="text-xs text-[#888888] mt-0.5">
-                New member will be added to all 12 monthly sheets.
+                Member added from joining month onwards; joining day marked Present.
               </p>
             </div>
           </div>
@@ -478,18 +490,29 @@ export default function AddMemberPage() {
             <FieldError msg={errors.buLead} />
           </div>
 
-          {/* Row 5: Joining Month & Year */}
+          {/* Row 5: Joining Date */}
           <div>
-            <Label required>Joining Month & Year</Label>
+            <Label required>Joining Date</Label>
             <p className="text-[11px] text-[#666666] mb-2">
-              Employee will be added to all sheets from this month onwards.
+              The joining day will be marked as Present (P). All sheets from this month onwards will include the employee.
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
+              {/* Day */}
+              <DarkSelect
+                value={joinDate}
+                onChange={setJoinDate}
+                options={Array.from(
+                  { length: daysInMonth(parseInt(joinMonth, 10), parseInt(joinYear, 10)) },
+                  (_, i) => ({ label: String(i + 1), value: String(i + 1) })
+                )}
+              />
+              {/* Month */}
               <DarkSelect
                 value={joinMonth}
                 onChange={setJoinMonth}
                 options={MONTH_LABELS.map((label, i) => ({ label, value: String(i) }))}
               />
+              {/* Year */}
               <DarkSelect
                 value={joinYear}
                 onChange={setJoinYear}

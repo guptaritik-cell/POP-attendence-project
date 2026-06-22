@@ -120,6 +120,7 @@ function toWeeklyRecord(
 ): EmployeeMonthRecord {
   const weekDays = record.days.filter(d => weekHeaders.includes(d.date));
   let totalPresent = 0, totalWFH = 0, totalAbsent = 0, totalHalfDay = 0, workingDays = 0;
+  let totalML = 0, totalSL = 0, totalPL = 0;
 
   for (const d of weekDays) {
     if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "") continue;
@@ -128,6 +129,9 @@ function toWeeklyRecord(
     else if (d.symbol === "WFH") { totalPresent += 1; totalWFH++; }
     else if (d.symbol === "HD")  { totalPresent += 0.5; totalHalfDay++; }
     else if (d.symbol === "A")   totalAbsent++;
+    else if (d.symbol === "ML")  { totalAbsent++; totalML++; }
+    else if (d.symbol === "SL")  { totalAbsent++; totalSL++; }
+    else if (d.symbol === "PL")  { totalAbsent++; totalPL++; }
   }
 
   const attendancePercent = workingDays > 0 ? (totalPresent / workingDays) * 100 : 0;
@@ -137,8 +141,9 @@ function toWeeklyRecord(
 
   return {
     ...record,
-    totalPresent, totalWFH, totalAbsent, totalHalfDay, workingDays,
-    attendancePercent, wfhPercent, totalHours, hoursPercent,
+    totalPresent, totalWFH, totalAbsent, totalHalfDay,
+    totalML, totalSL, totalPL,
+    workingDays, attendancePercent, wfhPercent, totalHours, hoursPercent,
   };
 }
 
