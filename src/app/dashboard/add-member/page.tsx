@@ -245,6 +245,8 @@ export default function AddMemberPage() {
   const [joinMonth, setJoinMonth]         = useState(String(new Date().getMonth()));   // 0-indexed
   const [joinYear,  setJoinYear]          = useState(String(CURRENT_YEAR));
   const [joinDate,  setJoinDate]          = useState(String(new Date().getDate()));    // 1-indexed
+  const [tillMonth, setTillMonth]         = useState("11");                            // 0-indexed (default December)
+  const [tillYear,  setTillYear]          = useState(String(CURRENT_YEAR));
 
   // UI state
   const [errors, setErrors]               = useState<Record<string, string>>({});
@@ -313,6 +315,13 @@ export default function AddMemberPage() {
       e.buLead = "BU Lead is required";
     }
 
+    // "Till" month must not be earlier than the joining month
+    const joinAbs = parseInt(joinYear, 10) * 12 + parseInt(joinMonth, 10);
+    const tillAbs = parseInt(tillYear, 10) * 12 + parseInt(tillMonth, 10);
+    if (tillAbs < joinAbs) {
+      e.till = "The 'till' month cannot be earlier than the joining month";
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -335,6 +344,8 @@ export default function AddMemberPage() {
           joinMonth: parseInt(joinMonth, 10),
           joinYear:  parseInt(joinYear,  10),
           joinDate:  parseInt(joinDate,  10),
+          tillMonth: parseInt(tillMonth, 10),
+          tillYear:  parseInt(tillYear,  10),
         }),
       });
 
@@ -390,7 +401,7 @@ export default function AddMemberPage() {
             <div>
               <h2 className="text-base font-semibold text-[#F5F5F5]">Add New Member</h2>
               <p className="text-xs text-[#888888] mt-0.5">
-                Member added from joining month onwards; joining day marked Present.
+                Member added across the selected month range; joining day marked Present.
               </p>
             </div>
           </div>
@@ -494,7 +505,7 @@ export default function AddMemberPage() {
           <div>
             <Label required>Joining Date</Label>
             <p className="text-[11px] text-[#666666] mb-2">
-              The joining day will be marked as Present (P). All sheets from this month onwards will include the employee.
+              The joining day will be marked as Present (P). Use “Add Until” below to set the last month.
             </p>
             <div className="grid grid-cols-3 gap-3">
               {/* Day */}
@@ -519,6 +530,31 @@ export default function AddMemberPage() {
                 options={YEAR_OPTIONS.map(y => ({ label: String(y), value: String(y) }))}
               />
             </div>
+          </div>
+
+          {/* Row 6: Till (end) month */}
+          <div>
+            <Label required>Add Until</Label>
+            <p className="text-[11px] text-[#666666] mb-2">
+              The last month to add this member to. Sheets from the joining month up to and including this month will contain the employee.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Month */}
+              <DarkSelect
+                value={tillMonth}
+                onChange={val => { setTillMonth(val); if (errors.till) setErrors(p => ({ ...p, till: "" })); }}
+                options={MONTH_LABELS.map((label, i) => ({ label, value: String(i) }))}
+                hasError={!!errors.till}
+              />
+              {/* Year */}
+              <DarkSelect
+                value={tillYear}
+                onChange={val => { setTillYear(val); if (errors.till) setErrors(p => ({ ...p, till: "" })); }}
+                options={YEAR_OPTIONS.map(y => ({ label: String(y), value: String(y) }))}
+                hasError={!!errors.till}
+              />
+            </div>
+            <FieldError msg={errors.till} />
           </div>
 
           {/* Submit */}

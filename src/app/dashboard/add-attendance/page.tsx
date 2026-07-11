@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   UploadCloud, FileText, X,
   CheckCircle2, XCircle, AlertTriangle,
   Loader2, CalendarDays, Laptop, Plane,
+  Trash2, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAttendanceStore } from "@/lib/store";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const MONTH_LABELS = [
@@ -16,7 +19,25 @@ const MONTH_LABELS = [
 ];
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1];
-type UploadMode = "all" | "wfh" | "leave";
+type UploadMode = "all" | "wfh" | "leave" | "remove";
+
+// ── Date helpers (ISO YYYY-MM-DD) ─────────────────────────────────────────────
+function toISO(d: Date) {
+  const y  = d.getFullYear();
+  const m  = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+function firstOfMonthISO() {
+  const now = new Date();
+  return toISO(new Date(now.getFullYear(), now.getMonth(), 1));
+}
+function todayISO() {
+  return toISO(new Date());
+}
+function initials(name: string) {
+  return name.split(" ").slice(0, 2).map(p => p[0]).join("").toUpperCase();
+}
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 function fmtBytes(n: number) {
@@ -79,6 +100,80 @@ function AlertBox({ alert }: { alert: AlertState }) {
       </div>
       {alert.extra && <p className="text-[11px] pl-5 text-[#888888]">{alert.extra}</p>}
     </div>
+  );
+}
+
+// ── Confirmation dialog (shown before every upload) ───────────────────────────
+function ConfirmDialog({
+  open, title, message, confirmLabel = "Yes, upload", onConfirm, onCancel, busy,
+  destructive = false, busyLabel = "Uploading…",
+}: {
+  open: boolean;
+  title: string;
+  message: React.ReactNode;
+  confirmLabel?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  busy?: boolean;
+  destructive?: boolean;
+  busyLabel?: string;
+}) {
+  const accentBorder = destructive ? "rgba(239,68,68,0.35)" : "rgba(255,77,0,0.3)";
+  const iconBg       = destructive ? "rgba(239,68,68,0.15)" : "rgba(255,77,0,0.15)";
+  const iconColor    = destructive ? "#f87171" : "#FF7A35";
+  const confirmBg    = destructive
+    ? "linear-gradient(135deg, #dc2626, #ef4444)"
+    : "linear-gradient(135deg, #FF4D00, #FF7A35)";
+  const Icon = destructive ? Trash2 : AlertTriangle;
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(2px)" }}
+          onClick={busy ? undefined : onCancel}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ duration: 0.18 }}
+            onClick={e => e.stopPropagation()}
+            className="w-full max-w-[400px] rounded-2xl overflow-hidden"
+            style={{ background: "#181818", border: `1px solid ${accentBorder}`, boxShadow: "0 20px 60px rgba(0,0,0,0.6)" }}
+          >
+            <div className="px-6 pt-6 pb-4 flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
+                <Icon size={18} style={{ color: iconColor }} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-[#F5F5F5]">{title}</h3>
+                <div className="text-[13px] text-[#aaaaaa] mt-1.5 leading-relaxed">{message}</div>
+              </div>
+            </div>
+            <div className="flex gap-2 px-6 pb-6">
+              <Button
+                onClick={onCancel}
+                disabled={busy}
+                className="flex-1 h-9 text-sm font-medium"
+                style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.15)", color: "#aaaaaa" }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={onConfirm}
+                disabled={busy}
+                className="flex-1 h-9 text-sm font-semibold text-white gap-2"
+                style={{ background: confirmBg, border: "none" }}
+              >
+                {busy ? <><Loader2 size={14} className="animate-spin" /> {busyLabel}</> : confirmLabel}
+              </Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -183,9 +278,8 @@ function AttendanceUploadPanel({ mode }: { mode: "all" }) {
   const [isDrag, setIsDrag] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [alert, setAlert] = useState<AlertState>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => { setAlert(null); }, [file, month, year]);
 
   const handleFile = useCallback((f: File) => {
     if (!isAccepted(f)) {
@@ -225,6 +319,7 @@ function AttendanceUploadPanel({ mode }: { mode: "all" }) {
       setAlert({ type: "error", message: "Network error — please try again" });
     } finally {
       setIsUploading(false);
+      setConfirmOpen(false);
     }
   }
 
@@ -246,8 +341,8 @@ function AttendanceUploadPanel({ mode }: { mode: "all" }) {
         </label>
         <p className="text-[11px] text-[#666666] mb-2">Select the month this data belongs to.</p>
         <div className="grid grid-cols-2 gap-3">
-          <DarkSelect value={month} onChange={setMonth} options={MONTH_LABELS.map((l, i) => ({ label: l, value: String(i) }))} />
-          <DarkSelect value={year}  onChange={setYear}  options={YEAR_OPTIONS.map(y => ({ label: String(y), value: String(y) }))} />
+          <DarkSelect value={month} onChange={v => { setMonth(v); setAlert(null); }} options={MONTH_LABELS.map((l, i) => ({ label: l, value: String(i) }))} />
+          <DarkSelect value={year}  onChange={v => { setYear(v);  setAlert(null); }} options={YEAR_OPTIONS.map(y => ({ label: String(y), value: String(y) }))} />
         </div>
       </div>
 
@@ -255,7 +350,7 @@ function AttendanceUploadPanel({ mode }: { mode: "all" }) {
         ? <DropZone label="Attendance File" accept=".csv, .xlsx, .xls" isDrag={isDrag} setIsDrag={setIsDrag} onFile={handleFile} inputRef={inputRef} />
         : (
           <div className="space-y-2">
-            <FileCard file={file} onRemove={() => setFile(null)} />
+            <FileCard file={file} onRemove={() => { setFile(null); setAlert(null); }} />
             {/* Format detected badge */}
             <p className="text-[11px] text-[#666666] pl-1">
               Format detected:{" "}
@@ -279,7 +374,7 @@ function AttendanceUploadPanel({ mode }: { mode: "all" }) {
       </div> */}
 
       <Button
-        onClick={!isUploading ? handleUpload : undefined}
+        onClick={!isUploading && file ? () => setConfirmOpen(true) : undefined}
         disabled={!file || isUploading}
         className="w-full h-10 text-sm font-semibold text-white gap-2"
         style={{
@@ -289,19 +384,34 @@ function AttendanceUploadPanel({ mode }: { mode: "all" }) {
       >
         {isUploading ? <><Loader2 size={15} className="animate-spin" /> Syncing…</> : <><UploadCloud size={15} /> Upload & Sync</>}
       </Button>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        busy={isUploading}
+        title="Confirm attendance upload"
+        confirmLabel="Yes, upload"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={handleUpload}
+        message={
+          <>
+            Are you sure you want to add the <span className="text-[#F5F5F5] font-medium">Attendance</span> sheet
+            {" "}for <span className="text-[#F5F5F5] font-medium">{MONTH_LABELS[parseInt(month, 10)]} {year}</span>?
+          </>
+        }
+      />
     </div>
   );
 }
 
 // ── Panel: Leave (Excel upload — same pattern as WFH) ────────────────────────
 function LeaveExcelPanel() {
+  const [month, setMonth] = useState(String(new Date().getMonth()));
   const [file,  setFile]  = useState<File | null>(null);
   const [isDrag, setIsDrag] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [alert, setAlert] = useState<AlertState>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => { setAlert(null); }, [file]);
 
   const handleFile = useCallback((f: File) => {
     const ext = f.name.split(".").pop()?.toLowerCase();
@@ -325,7 +435,7 @@ function LeaveExcelPanel() {
       const res = await fetch("/api/attendance/leave-excel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileBase64 }),
+        body: JSON.stringify({ fileBase64, month: parseInt(month, 10) }),
       });
       const data = await res.json();
 
@@ -344,6 +454,7 @@ function LeaveExcelPanel() {
       setAlert({ type: "error", message: "Network error — please try again" });
     } finally {
       setIsUploading(false);
+      setConfirmOpen(false);
     }
   }
 
@@ -357,17 +468,22 @@ function LeaveExcelPanel() {
         )}
       </AnimatePresence>
 
-      {/* Auto-detect notice */}
-      {/* <div className="flex items-start gap-2.5 rounded-lg px-4 py-3" style={{ background: "rgba(255,77,0,0.05)", border: "1px solid rgba(255,77,0,0.2)" }}>
-        <span className="text-[#FF7A35] mt-0.5 flex-shrink-0">✦</span>
-        <p className="text-[12px] text-[#aaaaaa]">
-          No month selection needed — dates are read from <span className="text-[#F5F5F5] font-medium">From Date</span> and <span className="text-[#F5F5F5] font-medium">To Date</span> columns. Multiple months are handled automatically.
-        </p>
-      </div> */}
+      {/* Target month */}
+      <div>
+        <label className="block text-xs font-medium text-[#888888] mb-1.5">
+          Target Month <span className="text-[#FF4D00]">*</span>
+        </label>
+        <p className="text-[11px] text-[#666666] mb-2">Only leave entries that fall in this month will be written.</p>
+        <DarkSelect
+          value={month}
+          onChange={v => { setMonth(v); setAlert(null); }}
+          options={MONTH_LABELS.map((l, i) => ({ label: l, value: String(i) }))}
+        />
+      </div>
 
       {!file
         ? <DropZone label="Leave Requests Excel File" accept=".xlsx, .xls" isDrag={isDrag} setIsDrag={setIsDrag} onFile={handleFile} inputRef={inputRef} />
-        : <FileCard file={file} onRemove={() => setFile(null)} />
+        : <FileCard file={file} onRemove={() => { setFile(null); setAlert(null); }} />
       }
 
       {/* Column reference */}
@@ -393,7 +509,7 @@ function LeaveExcelPanel() {
       </div> */}
 
       <Button
-        onClick={!isUploading ? handleUpload : undefined}
+        onClick={!isUploading && file ? () => setConfirmOpen(true) : undefined}
         disabled={!file || isUploading}
         className="w-full h-10 text-sm font-semibold text-white gap-2"
         style={{
@@ -403,19 +519,35 @@ function LeaveExcelPanel() {
       >
         {isUploading ? <><Loader2 size={15} className="animate-spin" /> Syncing…</> : <><UploadCloud size={15} /> Sync Leave Data</>}
       </Button>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        busy={isUploading}
+        title="Confirm leave upload"
+        confirmLabel="Yes, upload"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={handleUpload}
+        message={
+          <>
+            Are you sure you want to add this <span className="text-[#F5F5F5] font-medium">Leave</span> data
+            {" "}for <span className="text-[#F5F5F5] font-medium">{MONTH_LABELS[parseInt(month, 10)]}</span>?
+            {" "}Only entries in that month will be written.
+          </>
+        }
+      />
     </div>
   );
 }
 
 // ── Panel: WFH (Excel upload — dates auto-detected from file) ─────────────────
 function WFHExcelPanel() {
+  const [month, setMonth] = useState(String(new Date().getMonth()));
   const [file,  setFile]  = useState<File | null>(null);
   const [isDrag, setIsDrag] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [alert, setAlert] = useState<AlertState>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => { setAlert(null); }, [file]);
 
   const handleFile = useCallback((f: File) => {
     const ext = f.name.split(".").pop()?.toLowerCase();
@@ -441,7 +573,7 @@ function WFHExcelPanel() {
       const res = await fetch("/api/attendance/wfh-excel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileBase64 }),
+        body: JSON.stringify({ fileBase64, month: parseInt(month, 10) }),
       });
       const data = await res.json();
 
@@ -468,6 +600,7 @@ function WFHExcelPanel() {
       setAlert({ type: "error", message: "Network error — please try again" });
     } finally {
       setIsUploading(false);
+      setConfirmOpen(false);
     }
   }
 
@@ -481,23 +614,22 @@ function WFHExcelPanel() {
         )}
       </AnimatePresence>
 
-      {/* Auto-detect notice */}
-      {/* <div
-        className="flex items-start gap-2.5 rounded-lg px-4 py-3"
-        style={{ background: "rgba(255,77,0,0.05)", border: "1px solid rgba(255,77,0,0.2)" }}
-      >
-        <span className="text-[#FF7A35] mt-0.5 flex-shrink-0">✦</span>
-        <p className="text-[12px] text-[#aaaaaa]">
-          No month selection needed — dates are read directly from the{" "}
-          <span className="text-[#F5F5F5] font-medium">From Date</span> and{" "}
-          <span className="text-[#F5F5F5] font-medium">To Date</span> columns in the Excel file.
-          Multiple months are handled automatically.
-        </p>
-      </div> */}
+      {/* Target month */}
+      <div>
+        <label className="block text-xs font-medium text-[#888888] mb-1.5">
+          Target Month <span className="text-[#FF4D00]">*</span>
+        </label>
+        <p className="text-[11px] text-[#666666] mb-2">Only WFH entries that fall in this month will be written.</p>
+        <DarkSelect
+          value={month}
+          onChange={v => { setMonth(v); setAlert(null); }}
+          options={MONTH_LABELS.map((l, i) => ({ label: l, value: String(i) }))}
+        />
+      </div>
 
       {!file
         ? <DropZone label="WFH Requests Excel File" accept=".xlsx, .xls" isDrag={isDrag} setIsDrag={setIsDrag} onFile={handleFile} inputRef={inputRef} />
-        : <FileCard file={file} onRemove={() => setFile(null)} />
+        : <FileCard file={file} onRemove={() => { setFile(null); setAlert(null); }} />
       }
 
       {/* Column format reference */}
@@ -523,7 +655,7 @@ function WFHExcelPanel() {
       </div> */}
 
       <Button
-        onClick={!isUploading ? handleUpload : undefined}
+        onClick={!isUploading && file ? () => setConfirmOpen(true) : undefined}
         disabled={!file || isUploading}
         className="w-full h-10 text-sm font-semibold text-white gap-2"
         style={{
@@ -533,6 +665,206 @@ function WFHExcelPanel() {
       >
         {isUploading ? <><Loader2 size={15} className="animate-spin" /> Syncing…</> : <><UploadCloud size={15} /> Sync WFH Data</>}
       </Button>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        busy={isUploading}
+        title="Confirm WFH upload"
+        confirmLabel="Yes, upload"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={handleUpload}
+        message={
+          <>
+            Are you sure you want to add this <span className="text-[#F5F5F5] font-medium">WFH</span> data
+            {" "}for <span className="text-[#F5F5F5] font-medium">{MONTH_LABELS[parseInt(month, 10)]}</span>?
+            {" "}Only entries in that month will be written.
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+// ── Panel: Remove Attendance (clear an employee's attendance over a range) ────
+function RemoveAttendancePanel() {
+  const { monthData } = useAttendanceStore();
+
+  const [query, setQuery]           = useState("");
+  const [selected, setSelected]     = useState<{ employeeId: string; name: string; team: string } | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const [fromDate, setFromDate] = useState(firstOfMonthISO());
+  const [toDate,   setToDate]   = useState(todayISO());
+
+  const [isWorking, setIsWorking] = useState(false);
+  const [alert, setAlert]         = useState<AlertState>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const suggestions = useMemo(() => {
+    if (!monthData || query.trim().length < 1) return [];
+    const q = query.toLowerCase();
+    return monthData.records
+      .filter(r => r.name.toLowerCase().includes(q) || r.employeeId.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [monthData, query]);
+
+  function selectEmployee(r: { employeeId: string; name: string; team: string }) {
+    setSelected({ employeeId: r.employeeId, name: r.name, team: r.team });
+    setQuery(r.name);
+    setShowDropdown(false);
+    setAlert(null);
+  }
+
+  const canRemove = !!selected && !!fromDate && !!toDate && !isWorking;
+
+  function openConfirm() {
+    if (!selected) { setAlert({ type: "error", message: "Please select an employee first." }); return; }
+    if (!fromDate || !toDate) { setAlert({ type: "error", message: "Please choose both a from and to date." }); return; }
+    if (toDate < fromDate) { setAlert({ type: "error", message: "The 'to' date cannot be earlier than the 'from' date." }); return; }
+    setConfirmOpen(true);
+  }
+
+  async function handleRemove() {
+    if (!selected) return;
+    setIsWorking(true); setAlert(null);
+    try {
+      const res = await fetch("/api/attendance/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: selected.employeeId, from: fromDate, to: toDate }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setAlert({ type: "error", message: data.message ?? "Failed to remove attendance." });
+      } else {
+        setAlert({
+          type: data.daysCleared > 0 ? "success" : "warning",
+          message: data.daysCleared > 0
+            ? `Cleared attendance for ${selected.name} — ${data.daysCleared} day(s) across ${data.monthsTouched} month(s).`
+            : `No attendance cells were found to clear for ${selected.name} in the selected range.`,
+        });
+      }
+    } catch {
+      setAlert({ type: "error", message: "Network error — please try again." });
+    } finally {
+      setIsWorking(false);
+      setConfirmOpen(false);
+    }
+  }
+
+  const dateInputClass =
+    "h-9 px-3 text-sm rounded-md bg-[#181818] border border-[rgba(255,77,0,0.3)] text-[#F5F5F5] " +
+    "focus:border-[#FF4D00] focus:outline-none focus:ring-1 focus:ring-[#FF4D00] [color-scheme:dark] w-full";
+
+  return (
+    <div className="px-8 py-6 space-y-5">
+      <AnimatePresence>
+        {alert && (
+          <motion.div key="a" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+            <AlertBox alert={alert} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Employee picker */}
+      <div>
+        <label className="block text-xs font-medium text-[#888888] mb-1.5">
+          Employee <span className="text-[#FF4D00]">*</span>
+        </label>
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
+          <Input
+            value={query}
+            onChange={e => { setQuery(e.target.value); setShowDropdown(true); if (!e.target.value.trim()) setSelected(null); }}
+            onFocus={() => setShowDropdown(true)}
+            onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+            placeholder="Search by name or Employee ID…"
+            className="h-9 pl-9 text-sm bg-[#181818] border-[rgba(255,77,0,0.3)] text-[#F5F5F5] placeholder:text-[#555] focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00]"
+          />
+          <AnimatePresence>
+            {showDropdown && suggestions.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}
+                className="absolute top-full mt-1 left-0 right-0 rounded-xl overflow-hidden z-50"
+                style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.3)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+              >
+                {suggestions.map(r => (
+                  <button
+                    key={r.employeeId}
+                    onMouseDown={() => selectEmployee(r)}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[rgba(255,77,0,0.1)] transition-colors"
+                  >
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0" style={{ background: "linear-gradient(135deg,#FF4D00,#FF7A35)" }}>
+                      {initials(r.name)}
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#F5F5F5]">{r.name}</p>
+                      <p className="text-[11px] text-[#888888]">{r.employeeId} · {r.team}</p>
+                    </div>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        {!monthData && (
+          <p className="text-[11px] text-[#666666] mt-1.5">
+            Loading employee suggestions… you can also type an Employee ID directly.
+          </p>
+        )}
+      </div>
+
+      {/* Date range */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-[#888888] mb-1.5">From date <span className="text-[#FF4D00]">*</span></label>
+          <input type="date" value={fromDate} max={toDate || undefined} onChange={e => { setFromDate(e.target.value); setAlert(null); }} className={dateInputClass} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[#888888] mb-1.5">To date <span className="text-[#FF4D00]">*</span></label>
+          <input type="date" value={toDate} min={fromDate || undefined} onChange={e => { setToDate(e.target.value); setAlert(null); }} className={dateInputClass} />
+        </div>
+      </div>
+
+      <div className="flex items-start gap-2.5 rounded-lg px-4 py-3" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)" }}>
+        <AlertTriangle size={15} className="text-[#f87171] mt-0.5 flex-shrink-0" />
+        <p className="text-[12px] text-[#aaaaaa]">
+          This permanently clears the selected employee&apos;s attendance (status, clock-in/out and hours) for every day
+          in the range. Employee info columns are left intact. This cannot be undone.
+        </p>
+      </div>
+
+      <Button
+        onClick={canRemove ? openConfirm : undefined}
+        disabled={!canRemove}
+        className="w-full h-10 text-sm font-semibold text-white gap-2"
+        style={{
+          background: !canRemove ? "rgba(239,68,68,0.3)" : "linear-gradient(135deg, #dc2626, #ef4444)",
+          border: "none", cursor: !canRemove ? "not-allowed" : "pointer", opacity: 1,
+        }}
+      >
+        {isWorking ? <><Loader2 size={15} className="animate-spin" /> Removing…</> : <><Trash2 size={15} /> Remove Attendance</>}
+      </Button>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        busy={isWorking}
+        destructive
+        title="Confirm attendance removal"
+        confirmLabel="Yes, remove"
+        busyLabel="Removing…"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={handleRemove}
+        message={
+          <>
+            Are you sure you want to clear all attendance for{" "}
+            <span className="text-[#F5F5F5] font-medium">{selected?.name}</span>{" "}
+            (<span className="text-[#F5F5F5] font-medium">{selected?.employeeId}</span>) from{" "}
+            <span className="text-[#F5F5F5] font-medium">{fromDate}</span> to{" "}
+            <span className="text-[#F5F5F5] font-medium">{toDate}</span>? This cannot be undone.
+          </>
+        }
+      />
     </div>
   );
 }
@@ -555,6 +887,12 @@ const TABS: { mode: UploadMode; label: string; Icon: React.FC<{ size?: number }>
     mode: "leave",
     label: "Add Leave Data",
     Icon: Plane,
+    description: "",
+  },
+  {
+    mode: "remove",
+    label: "Remove Attendance",
+    Icon: Trash2,
     description: "",
   },
 ];
@@ -623,6 +961,8 @@ export default function AddAttendancePage() {
           ? <WFHExcelPanel   key="wfh"   />
           : activeTab === "leave"
           ? <LeaveExcelPanel key="leave" />
+          : activeTab === "remove"
+          ? <RemoveAttendancePanel key="remove" />
           : <AttendanceUploadPanel key="all" mode="all" />
         }
       </div>

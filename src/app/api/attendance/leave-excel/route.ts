@@ -4,8 +4,14 @@ import { updateLeaveFromExcel } from "@/lib/sheets";
 
 export const maxDuration = 30;
 
+const MONTH_LABELS = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
+];
+
 interface LeaveExcelBody {
   fileBase64: string;
+  month?: number;   // 0-indexed target month (only entries in this month are written)
 }
 
 /**
@@ -70,12 +76,26 @@ export async function POST(req: Request) {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    const result = await updateLeaveFromExcel(buffer);
+    const targetMonth = typeof body.month === "number" ? body.month : undefined;
+    if (targetMonth !== undefined && (targetMonth < 0 || targetMonth > 11)) {
+      return NextResponse.json({ success: false, message: "Invalid target month" }, { status: 422 });
+    }
 
-    const message =
-      result.cellsWritten === 0
-        ? "No approved leave requests found in the file."
-        : `Leave data synced — ${result.rowsProcessed} approved request${result.rowsProcessed !== 1 ? "s" : ""} processed, ${result.cellsWritten} cells written.`;
+    const result = await updateLeaveFromExcel(buffer, targetMonth);
+
+    let message: string;
+    if (targetMonth !== undefined && result.cellsWritten === 0) {
+      const inFile = result.monthsInFile.map(m => MONTH_LABELS[m]).join(", ");
+      message = result.monthsInFile.includes(targetMonth)
+        ? `No leave cells were written for ${MONTH_LABELS[targetMonth]} (employees may not exist in that sheet, or the days were week-offs/holidays).`
+        : `No approved leave requests for ${MONTH_LABELS[targetMonth]} found in the file.` +
+          (inFile ? ` The file contains data for: ${inFile}.` : "");
+    } else if (result.cellsWritten === 0) {
+      message = "No approved leave requests found in the file.";
+    } else {
+      const scope = targetMonth !== undefined ? ` for ${MONTH_LABELS[targetMonth]}` : "";
+      message = `Leave data synced${scope} — ${result.cellsWritten} cells written.`;
+    }
 
     return NextResponse.json({ success: true, message, stats: result });
   } catch (err: unknown) {

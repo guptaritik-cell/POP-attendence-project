@@ -384,18 +384,12 @@ function colIndexToLetter(idx: number): string {
   return letter;
 }
 
-// Extract the start row number from a Sheets A1 range string
-// e.g. "Jun!A100:E103" → 100,  "Sheet1!B5" → 5
-function startRowFromRange(range: string): number {
-  const m = range.match(/[A-Z]+(\d+)/);
-  return m ? parseInt(m[1], 10) : -1;
-}
-
 export async function addEmployee(
   employee: Employee,
   joinMonth: number,   // 0-indexed: 0 = January … 11 = December
   joinYear:  number,
   joinDate:  number = 1,   // 1-indexed day of the joining month (1–31). Defaults to 1
+  endMonth:  number = 11,  // 0-indexed inclusive upper bound (defaults to December)
 ): Promise<void> {
   const sheetId = process.env.GOOGLE_SHEET_ID;
   if (!sheetId) throw new Error("GOOGLE_SHEET_ID is not set");
@@ -415,7 +409,12 @@ export async function addEmployee(
   //
   // Current assumption: all tabs belong to a single year (the sheet year).
   // Tabs are compared by their index in MONTH_NAMES (0 = Jan … 11 = Dec).
-  const tabsToWrite = MONTH_NAMES.filter((_, monthIdx) => monthIdx >= joinMonth);
+  // The employee is written to every month from joinMonth up to endMonth
+  // (inclusive).
+  const upperBound  = Math.min(Math.max(endMonth, joinMonth), 11);
+  const tabsToWrite = MONTH_NAMES.filter(
+    (_, monthIdx) => monthIdx >= joinMonth && monthIdx <= upperBound,
+  );
 
   // ── 3. Detect sheet format from the first eligible existing tab ──────────
   // New format: col E header is a non-numeric label ("Type\Date").
@@ -444,62 +443,59 @@ export async function addEmployee(
         [employee.employeeId, employee.name, employee.team, employee.buLead],
       ];
 
-  const range = isNewFormat ? "A:E" : "A:D";
-
   const dayColStart = isNewFormat ? 5 : 4;
 
-  // ── 5. Append — skip tabs that don't exist yet, collect any errors ───────
+  // ── 5. Write each tab: find the true last row, then write the block ──────
+  //
+  // NOTE: We deliberately do NOT use spreadsheets.values.append here. In the
+  // new format an employee spans 4 rows (Status + Clock In / Out / Total WK)
+  // where the sub-rows have an EMPTY column A. Google's append "table
+  // detection" treats the previous employee's Status row as the last row and,
+  // with the default OVERWRITE option, clobbers the sub-rows of whoever was
+  // added just before. Instead we read the sheet, compute the real last used
+  // row (values.get already trims trailing empties), and write the block at
+  // lastRow+1 with a plain update — deterministic and gap-free.
   const writeErrors: string[] = [];
   for (const tabName of tabsToWrite) {
     if (!existingTabs.has(tabName)) continue;
     try {
-      const appendRes = await sheets.spreadsheets.values.append({
+      // Read existing rows across the full width so the last row reflects
+      // day-cell data too (not just A:E). Trailing empty rows are trimmed.
+      const cur = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: `${tabName}!${range}`,
-        valueInputOption: "RAW",
-        requestBody: { values: rowsToAppend },
+        range: tabName,
       });
+      const curRows = (cur.data.values ?? []) as string[][];
+      const lastRow    = curRows.length;   // 1-based index of last non-empty row
+      const writeStart = lastRow + 1;
+
+      // Clone the block so we can inject the joining-day "P" into the Status row.
+      const rows = rowsToAppend.map(r => [...r]);
 
       // ── Mark 'P' on the joining date — only for the joining month tab ───
       if (tabName === MONTH_NAMES[joinMonth] && joinDate >= 1) {
-        try {
-          // Read header row to find the column for joinDate
-          const hdrRes = await sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId,
-            range: `${tabName}!1:1`,
-          });
-          const headers = hdrRes.data.values?.[0] ?? [];
-
-          // Scan day columns for the one whose day-number matches joinDate
-          let dayColAbsIdx = -1;
-          for (let i = dayColStart; i < headers.length; i++) {
-            const h = (headers[i] ?? "").trim();
-            if (!h || h.toLowerCase().startsWith("total")) break;
-            // Headers look like "1 Th" or "1-Jan Thu" — day number is always first token
-            const dayNum = parseInt(h.split(/[\s-]/)[0], 10);
-            if (dayNum === joinDate) { dayColAbsIdx = i; break; }
-          }
-
-          if (dayColAbsIdx >= 0) {
-            // Derive the row of the Status row from the append response
-            const updatedRange = appendRes.data.updates?.updatedRange ?? "";
-            const statusRow = startRowFromRange(updatedRange);
-
-            if (statusRow > 0) {
-              const colLetter = colIndexToLetter(dayColAbsIdx);
-              await sheets.spreadsheets.values.update({
-                spreadsheetId: sheetId,
-                range: `${tabName}!${colLetter}${statusRow}`,
-                valueInputOption: "RAW",
-                requestBody: { values: [["P"]] },
-              });
-            }
-          }
-        } catch (markErr) {
-          // Non-fatal — log but don't fail the whole operation
-          console.warn(`[addEmployee] Could not mark joining date P in "${tabName}":`, markErr);
+        const headers = curRows[0] ?? [];
+        let dayColAbsIdx = -1;
+        for (let i = dayColStart; i < headers.length; i++) {
+          const h = (headers[i] ?? "").trim();
+          if (!h || h.toLowerCase().startsWith("total")) break;
+          // Headers look like "1 Th" or "1-Jan Thu" — day number is the first token
+          const dayNum = parseInt(h.split(/[\s-]/)[0], 10);
+          if (dayNum === joinDate) { dayColAbsIdx = i; break; }
+        }
+        if (dayColAbsIdx >= 0) {
+          while (rows[0].length <= dayColAbsIdx) rows[0].push("");
+          rows[0][dayColAbsIdx] = "P";
         }
       }
+
+      // Write the whole block starting at column A of the first free row.
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `${tabName}!A${writeStart}`,
+        valueInputOption: "RAW",
+        requestBody: { values: rows },
+      });
     } catch (err: unknown) {
       // Extract the actual Google API error message if available
       let detail = String(err);
@@ -665,6 +661,130 @@ export async function updateAttendanceFromCsv(
   return { employeesUpdated, cellsWritten: data.length, notFound };
 }
 
+// ── Clear an employee's attendance across a date range ────────────────────────
+//
+// Destructive: for the given employee, blanks out the status cell (and, in the
+// new format, the Clock In / Clock Out / Total WK sub-rows) for every day that
+// falls inside [from, to].  Employee info columns (ID / Name / Team / BU Lead)
+// are left untouched.  Iterates every month tab covered by the range.
+//
+// `from` / `to` are { year, month (0-idx), day }.
+export async function clearAttendanceRange(
+  employeeId: string,
+  from: { year: number; month: number; day: number },
+  to:   { year: number; month: number; day: number },
+): Promise<{ found: boolean; monthsTouched: number; cellsCleared: number; daysCleared: number }> {
+  const sheetId = process.env.GOOGLE_SHEET_ID;
+  if (!sheetId) throw new Error("GOOGLE_SHEET_ID not set");
+
+  const sheets = getSheetsClient();
+  const empKey = employeeId.trim().toUpperCase();
+
+  const fromAbs = from.year * 12 + from.month;
+  const toAbs   = to.year   * 12 + to.month;
+
+  const data: { range: string; values: string[][] }[] = [];
+  let found = false;
+  let monthsTouched = 0;
+  let daysCleared = 0;
+
+  for (let abs = fromAbs; abs <= toAbs; abs++) {
+    const year  = Math.floor(abs / 12);
+    const month = abs % 12;
+    const tabName = MONTH_TAB_NAMES[month];
+
+    // Day window inside this month
+    const dayFrom = abs === fromAbs ? from.day : 1;
+    const dayTo   = abs === toAbs   ? to.day   : daysInMonthLocal(year, month);
+
+    let sheetRows: string[][];
+    try {
+      const sheetRes = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: tabName,
+      });
+      sheetRows = (sheetRes.data.values ?? []) as string[][];
+    } catch {
+      continue; // tab doesn't exist for this month
+    }
+    if (!sheetRows.length) continue;
+
+    // Detect format, build day-number → column index map
+    const sheetHeader = sheetRows[0];
+    const col4        = (sheetHeader[4] ?? "").trim();
+    const isNewFmt    = col4 !== "" && isNaN(parseInt(col4, 10));
+    const dayColStart = isNewFmt ? 5 : 4;
+
+    const dayNumToColIdx = new Map<number, number>();
+    for (let i = dayColStart; i < sheetHeader.length; i++) {
+      const h = (sheetHeader[i] ?? "").trim();
+      if (!h || h.toLowerCase().startsWith("total")) break;
+      const n = parseInt(h.split(/[\s-]/)[0], 10);
+      if (!isNaN(n)) dayNumToColIdx.set(n, i);
+    }
+
+    // Locate the employee's rows
+    type EmpRows = { status: number; clockIn: number; clockOut: number; hours: number };
+    let empRows: EmpRows | null = null;
+
+    let ri = 1;
+    while (ri < sheetRows.length) {
+      const row = sheetRows[ri];
+      const id  = (row[0] ?? "").trim().toUpperCase();
+      if (!id) { ri++; continue; }
+
+      const entry: EmpRows = { status: ri + 1, clockIn: -1, clockOut: -1, hours: -1 };
+      if (isNewFmt) {
+        let j = ri + 1;
+        while (j < sheetRows.length && !(sheetRows[j][0] ?? "").trim()) {
+          const sub = (sheetRows[j][4] ?? "").trim().toLowerCase();
+          if (sub === "clock in")       entry.clockIn  = j + 1;
+          else if (sub === "clock out") entry.clockOut = j + 1;
+          else if (sub === "total wk")  entry.hours    = j + 1;
+          j++;
+        }
+        if (id === empKey) { empRows = entry; break; }
+        ri = j;
+      } else {
+        if (id === empKey) { empRows = entry; break; }
+        ri++;
+      }
+    }
+
+    if (!empRows) continue; // employee not in this month tab
+    found = true;
+    monthsTouched++;
+
+    for (let d = dayFrom; d <= dayTo; d++) {
+      const colIdx = dayNumToColIdx.get(d);
+      if (colIdx === undefined) continue;
+      const col = colIndexToLetter(colIdx);
+
+      data.push({ range: `${tabName}!${col}${empRows.status}`, values: [[""]] });
+      if (isNewFmt) {
+        if (empRows.clockIn  > 0) data.push({ range: `${tabName}!${col}${empRows.clockIn}`,  values: [[""]] });
+        if (empRows.clockOut > 0) data.push({ range: `${tabName}!${col}${empRows.clockOut}`, values: [[""]] });
+        if (empRows.hours    > 0) data.push({ range: `${tabName}!${col}${empRows.hours}`,    values: [[""]] });
+      }
+      daysCleared++;
+    }
+  }
+
+  if (data.length) {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: { valueInputOption: "RAW", data },
+    });
+  }
+
+  return { found, monthsTouched, cellsCleared: data.length, daysCleared };
+}
+
+// Days in a given month (monthIndex 0-11) — local helper for range clearing
+function daysInMonthLocal(year: number, monthIndex: number): number {
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
 // ── Update WFH data from HR Excel export ──────────────────────────────────────
 //
 // Accepts the raw file buffer of the "Attendance Working Remotely requests" XLSX
@@ -678,11 +798,13 @@ export async function updateAttendanceFromCsv(
 //
 export async function updateWFHFromExcel(
   fileBuffer: Buffer,
+  targetMonth?: number,   // 0-indexed; when provided, only this month's entries are written
 ): Promise<{
   rowsProcessed: number;
   cellsWritten:  number;
   skipped:       string[];
   errors:        string[];
+  monthsInFile:  number[];
 }> {
   const sheetId = process.env.GOOGLE_SHEET_ID;
   if (!sheetId) throw new Error("GOOGLE_SHEET_ID not set");
@@ -719,22 +841,40 @@ export async function updateWFHFromExcel(
   const serialToDate = (serial: number): Date =>
     new Date((serial - 25569) * 86400 * 1000);
 
-  // 3. Parse approved WFH rows → group individual dates by month (0-indexed)
-  type DateEntry = { employeeId: string; date: Date };
+  // Request Type → attendance symbol.
+  //  • "WFH" (work from home)     → "WFH"
+  //  • "On Duty" (official duty)  → "WFH"
+  // Any other request type is reported in `skipped` so nothing is silently lost.
+  const REQUEST_SYMBOL: Record<string, AttendanceSymbol> = {
+    "wfh":            "WFH",
+    "work from home": "WFH",
+    "on duty":        "WFH",
+    "onduty":         "WFH",
+  };
+
+  // 3. Parse approved rows → group individual dates by month (0-indexed)
+  type DateEntry = { employeeId: string; date: Date; symbol: AttendanceSymbol };
   const byMonth = new Map<number, DateEntry[]>();  // monthIndex → entries
   const skipped: string[] = [];
   let rowsProcessed = 0;
 
   for (let r = 1; r < rawRows.length; r++) {
-    const row     = rawRows[r];
-    const empId   = String(row[ci.empId]   ?? "").trim();
-    const reqType = String(row[ci.reqType]  ?? "").trim().toLowerCase();
-    const status  = String(row[ci.status]   ?? "").trim().toLowerCase();
+    const row        = rawRows[r];
+    const empId      = String(row[ci.empId]   ?? "").trim();
+    const reqTypeRaw = String(row[ci.reqType]  ?? "").trim();
+    const reqType    = reqTypeRaw.toLowerCase();
+    const status     = String(row[ci.status]   ?? "").trim().toLowerCase();
 
     if (!empId) continue;
-    if (reqType !== "wfh") continue;                         // skip On Duty, etc.
-    if (status  !== "approved") {
-      skipped.push(`${empId}: ${status}`);
+    if (status !== "approved") {
+      skipped.push(`${empId}: ${status || "no status"}`);
+      continue;
+    }
+
+    // Map the request type to a symbol; skip (but report) unknown types.
+    const symbol = REQUEST_SYMBOL[reqType];
+    if (!symbol) {
+      skipped.push(`${empId}: unsupported request type "${reqTypeRaw}"`);
       continue;
     }
 
@@ -753,14 +893,24 @@ export async function updateWFHFromExcel(
     while (cur <= toDate) {
       const mIdx = cur.getUTCMonth();   // 0-11
       if (!byMonth.has(mIdx)) byMonth.set(mIdx, []);
-      byMonth.get(mIdx)!.push({ employeeId: empId, date: new Date(cur) });
+      byMonth.get(mIdx)!.push({ employeeId: empId, date: new Date(cur), symbol });
       cur.setUTCDate(cur.getUTCDate() + 1);
     }
     rowsProcessed++;
   }
 
+  // Which months does the file actually contain (before any target filter)?
+  const monthsInFile = [...byMonth.keys()].sort((a, b) => a - b);
+
   if (!rowsProcessed) {
-    return { rowsProcessed: 0, cellsWritten: 0, skipped, errors: [] };
+    return { rowsProcessed: 0, cellsWritten: 0, skipped, errors: [], monthsInFile };
+  }
+
+  // If a target month was chosen, only write that month; drop the rest.
+  if (typeof targetMonth === "number") {
+    for (const m of monthsInFile) {
+      if (m !== targetMonth) byMonth.delete(m);
+    }
   }
 
   // 4. Update each affected month tab
@@ -838,8 +988,9 @@ export async function updateWFHFromExcel(
       if (colIdx2 === undefined) continue;
 
       const col = colIndexToLetter(colIdx2);
-      data.push({ range: `${tabName}!${col}${empRows.status}`, values: [["WFH"]] });
+      data.push({ range: `${tabName}!${col}${empRows.status}`, values: [[e.symbol]] });
       if (isNewFmt) {
+        // Both WFH and On Duty are full working days → standard 10:00–19:00 (9h).
         if (empRows.clockIn  > 0) data.push({ range: `${tabName}!${col}${empRows.clockIn}`,  values: [["10:00"]] });
         if (empRows.clockOut > 0) data.push({ range: `${tabName}!${col}${empRows.clockOut}`, values: [["19:00"]] });
         if (empRows.hours    > 0) data.push({ range: `${tabName}!${col}${empRows.hours}`,    values: [["09:00"]] });
@@ -860,7 +1011,7 @@ export async function updateWFHFromExcel(
     }
   }
 
-  return { rowsProcessed, cellsWritten: totalCells, skipped, errors };
+  return { rowsProcessed, cellsWritten: totalCells, skipped, errors, monthsInFile };
 }
 
 // ── Update leave data from HR Excel export ────────────────────────────────────
@@ -881,11 +1032,13 @@ export async function updateWFHFromExcel(
 //
 export async function updateLeaveFromExcel(
   fileBuffer: Buffer,
+  targetMonth?: number,   // 0-indexed; when provided, only this month's entries are written
 ): Promise<{
   rowsProcessed: number;
   cellsWritten:  number;
   skipped:       string[];
   errors:        string[];
+  monthsInFile:  number[];
 }> {
   const sheetId = process.env.GOOGLE_SHEET_ID;
   if (!sheetId) throw new Error("GOOGLE_SHEET_ID not set");
@@ -973,7 +1126,17 @@ export async function updateLeaveFromExcel(
     rowsProcessed++;
   }
 
-  if (!rowsProcessed) return { rowsProcessed: 0, cellsWritten: 0, skipped, errors: [] };
+  // Which months does the file actually contain (before any target filter)?
+  const monthsInFile = [...byMonth.keys()].sort((a, b) => a - b);
+
+  if (!rowsProcessed) return { rowsProcessed: 0, cellsWritten: 0, skipped, errors: [], monthsInFile };
+
+  // If a target month was chosen, only write that month; drop the rest.
+  if (typeof targetMonth === "number") {
+    for (const m of monthsInFile) {
+      if (m !== targetMonth) byMonth.delete(m);
+    }
+  }
 
   // 4. Update each affected month tab
   const sheets  = getSheetsClient();
@@ -1056,5 +1219,5 @@ export async function updateLeaveFromExcel(
     }
   }
 
-  return { rowsProcessed, cellsWritten: totalCells, skipped, errors };
+  return { rowsProcessed, cellsWritten: totalCells, skipped, errors, monthsInFile };
 }

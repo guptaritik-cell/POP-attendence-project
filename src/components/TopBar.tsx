@@ -19,8 +19,19 @@ const PATH_TITLES: Record<string, string> = {
   "/dashboard/team-view":        "Team View",
   "/dashboard/analytics":        "Analytics",
   "/dashboard/employee-profile": "Employee Profile",
+  "/dashboard/employee-summary": "Employee Summary",
   "/dashboard/add-member":       "Add Member",
+  "/dashboard/add-attendance":   "Add Attendance Data",
 };
+
+// Pages that display a single month's snapshot need the month/year selector.
+// Pages with their own date controls (or that aren't month-specific) do not.
+const MONTH_PICKER_PATHS = [
+  "/dashboard/all-employees",
+  "/dashboard/team-view",
+  "/dashboard/analytics",
+  "/dashboard/employee-profile",
+];
 
 function formatLastSynced(ts: number): string {
   const diff = Math.floor((Date.now() - ts) / 1000);
@@ -33,6 +44,7 @@ function formatLastSynced(ts: number): string {
 export function TopBar() {
   const pathname = usePathname();
   const title    = PATH_TITLES[pathname] ?? "Dashboard";
+  const showMonthControls = MONTH_PICKER_PATHS.some(p => pathname.startsWith(p));
 
   const {
     selectedMonth, selectedYear,
@@ -56,7 +68,8 @@ export function TopBar() {
         {title}
       </h1>
 
-      {/* Month + Year selectors */}
+      {/* Month + Year selectors — only on month-snapshot pages */}
+      {showMonthControls ? (
       <div className="flex items-center gap-2">
         <Select value={String(selectedMonth)} onValueChange={v => setMonth(Number(v))}>
           <SelectTrigger className="h-8 w-32 text-xs border-[rgba(255,77,0,0.3)] bg-[#181818] text-[#F5F5F5]">
@@ -86,31 +99,36 @@ export function TopBar() {
           </SelectContent>
         </Select>
       </div>
+      ) : (
+        <div className="flex-1" />
+      )}
 
       {/* Right side: sync status + theme toggle */}
       <div className="flex items-center gap-3">
-        {/* Last synced + refresh */}
-        <div className="flex items-center gap-2">
-          {lastFetched && !isLoading && (
-            <span className="text-[11px] text-[#555] whitespace-nowrap">
-              Synced {formatLastSynced(lastFetched)}
-            </span>
-          )}
-          <button
-            onClick={triggerRefresh}
-            disabled={isLoading}
-            title="Refresh data from Google Sheets"
-            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
-            style={{
-              background: "rgba(255,77,0,0.1)",
-              border: "1px solid rgba(255,77,0,0.25)",
-              color: isLoading ? "#555" : "#FF7A35",
-              cursor: isLoading ? "not-allowed" : "pointer",
-            }}
-          >
-            <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
-          </button>
-        </div>
+        {/* Last synced + refresh — only on month-snapshot pages */}
+        {showMonthControls && (
+          <div className="flex items-center gap-2">
+            {lastFetched && !isLoading && (
+              <span className="text-[11px] text-[#555] whitespace-nowrap">
+                Synced {formatLastSynced(lastFetched)}
+              </span>
+            )}
+            <button
+              onClick={triggerRefresh}
+              disabled={isLoading}
+              title="Refresh data from Google Sheets"
+              className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+              style={{
+                background: "rgba(255,77,0,0.1)",
+                border: "1px solid rgba(255,77,0,0.25)",
+                color: isLoading ? "#555" : "#FF7A35",
+                cursor: isLoading ? "not-allowed" : "pointer",
+              }}
+            >
+              <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+            </button>
+          </div>
+        )}
 
         {/* Theme toggle */}
         <ThemeToggle />
