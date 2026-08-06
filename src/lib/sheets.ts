@@ -68,8 +68,8 @@ function parseSymbol(raw: string): AttendanceSymbol {
   if (s === "A")   return "A";
   if (s === "HD")  return "HD";
   if (s === "WFH") return "WFH";
-  if (s === "NHD") return "NHD";
-  if (s === "WO" || s === "WOP") return "WO";   // WOP = Week Off + Public holiday
+  if (s === "NHD" || s === "HO") return "NHD";
+  if (s === "WO" || s === "WOP" || s === "MO") return "WO";   // WOP/MO = Week Off
   if (s === "ML") return "ML";   // Menstrual Leave
   if (s === "SL") return "SL";   // Sick Leave
   if (s === "PL") return "PL";   // Paid Leave
@@ -138,17 +138,78 @@ function computeRecord(
 
 // ── Parse raw rows into MonthData ────────────────────────────────────────────
 //
-// Supports two sheet layouts:
+// ── Format detector ──────────────────────────────────────────────────────────
+// Determines:
+//  • dayColStart — 0-based column index where day 1 data starts
+//  • hasSubRows — whether sub-rows exist (Clock In / Clock Out / Total WK)
+//  • typeCol — 0-based column index containing sub-row type labels ("Status", "Clock In", etc.)
 //
-// OLD (4-col prefix):  [ID, Name, Team, BuLead, day1, day2, …]
-//   – one row per employee, sub-rows ignored
-//
-// NEW (5-col prefix):  [ID, Name, Team/BU, BuLead, Type\Date, day1, day2, …]
-//   – col 4 = "Status" / "Clock In" / "Clock Out" / "Total WK"
-//   – 4 rows per employee; sub-rows have empty col 0
-//
-// Detection: if col 4 of the header does NOT start with a digit → new format.
-//
+export function detectFormat(rows: string[][]): {
+  dayColStart: number;
+  hasSubRows: boolean;
+  typeCol: number;
+} {
+  if (!rows || rows.length === 0) {
+    return { dayColStart: 4, hasSubRows: false, typeCol: 3 };
+  }
+
+  const headerRow = rows[0];
+
+  // 1. Find dayColStart: first column index >= 1 whose header cell starts with a digit
+  let dayColStart = -1;
+  for (let c = 1; c < headerRow.length; c++) {
+    const h = (headerRow[c] ?? "").trim();
+    if (/^\d/.test(h)) {
+      dayColStart = c;
+      break;
+    }
+  }
+  if (dayColStart === -1) {
+    dayColStart = 4;
+  }
+
+  const typeCol = Math.max(0, dayColStart - 1);
+
+  // 2. Check if sub-rows exist (Clock In / Clock Out / Total WK)
+  let hasSubRows = false;
+
+  // Check header row labels before dayColStart
+  for (let c = 0; c < dayColStart; c++) {
+    const hLabel = (headerRow[c] ?? "").trim().toLowerCase();
+    if (hLabel.includes("type") || hLabel.includes("status")) {
+      hasSubRows = true;
+      break;
+    }
+  }
+
+  // Check data rows for empty col 0 with subType labels
+  if (!hasSubRows) {
+    for (let r = 1; r < Math.min(rows.length, 100); r++) {
+      const row = rows[r];
+      if (!(row[0] ?? "").trim()) {
+        for (let c = 0; c < dayColStart; c++) {
+          const label = (row[c] ?? "").trim().toLowerCase();
+          if (
+            label === "clock in" ||
+            label === "clock out" ||
+            label === "total wk" ||
+            label === "clock-in" ||
+            label === "clock-out" ||
+            label === "status"
+          ) {
+            hasSubRows = true;
+            break;
+          }
+        }
+        if (hasSubRows) break;
+      }
+    }
+  }
+
+  return { dayColStart, hasSubRows, typeCol };
+}
+
+// ── Parse raw rows into MonthData ────────────────────────────────────────────
 export function parseMonthData(
   rows: string[][],
   month: string,
@@ -160,11 +221,7 @@ export function parseMonthData(
   }
 
   const headerRow = rows[0];
-
-  // ── Format detection ──────────────────────────────────────────────────────
-  const col4        = (headerRow[4] ?? "").trim();
-  const isNewFormat = col4 !== "" && isNaN(parseInt(col4, 10));
-  const dayColStart = isNewFormat ? 5 : 4;
+  const { dayColStart, hasSubRows: isNewFormat, typeCol } = detectFormat(rows);
 
   // ── Identify day column indices + headers ─────────────────────────────────
   const dayColIndices: number[] = [];
@@ -177,17 +234,12 @@ export function parseMonthData(
     columnHeaders.push(h);
   }
 
-  // Helper: column header ("1 Th" or "1-Jan (Thu)") → day number
+  // Helper: column header ("1 Th" or "1-Jan (Thu)" or "1 M") → day number
   function dayNumFromHeader(header: string, fallback: number): number {
-    return parseInt(header.split(" ")[0], 10)
-        || parseInt(header.split("-")[0], 10)
-        || fallback;
+    return parseInt(header.split(/[\s-]/)[0], 10) || fallback;
   }
 
   // ── Phase 1: build days arrays for every employee ─────────────────────────
-  // We need all days arrays first so we can derive NHD indices before computing
-  // any attendance percentages.
-
   type EmpGroup = {
     employeeId: string; name: string; team: string; buLead: string;
     days: DayRecord[];
@@ -202,8 +254,8 @@ export function parseMonthData(
       if (!employeeId) { i++; continue; }
 
       const name   = (row[1] ?? "").trim();
-      const team   = (row[2] ?? "").trim();
-      const buLead = (row[3] ?? "").trim();
+      const team   = typeCol >= 2 ? (row[2] ?? "").trim() : "";
+      const buLead = typeCol >= 4 ? (row[3] ?? "").trim() : "";
       const statusRow = dayColIndices.map(ci => (row[ci] ?? "").trim());
 
       let clockInRow:  string[] = [];
@@ -213,10 +265,14 @@ export function parseMonthData(
       i++;
       while (i < rows.length && !(rows[i][0] ?? "").trim()) {
         const sub     = rows[i];
-        const subType = (sub[4] ?? "").trim().toLowerCase();
-        if (subType === "clock in")       clockInRow  = dayColIndices.map(ci => (sub[ci] ?? "").trim());
-        else if (subType === "clock out") clockOutRow = dayColIndices.map(ci => (sub[ci] ?? "").trim());
-        else if (subType === "total wk")  hoursRow    = dayColIndices.map(ci => (sub[ci] ?? "").trim());
+        const subType = (sub[typeCol] ?? "").trim().toLowerCase();
+        if (subType === "clock in" || subType === "clock-in") {
+          clockInRow  = dayColIndices.map(ci => (sub[ci] ?? "").trim());
+        } else if (subType === "clock out" || subType === "clock-out") {
+          clockOutRow = dayColIndices.map(ci => (sub[ci] ?? "").trim());
+        } else if (subType === "total wk" || subType === "total work" || subType === "hours" || subType === "total hours") {
+          hoursRow    = dayColIndices.map(ci => (sub[ci] ?? "").trim());
+        }
         i++;
       }
 
@@ -417,18 +473,21 @@ export async function addEmployee(
   );
 
   // ── 3. Detect sheet format from the first eligible existing tab ──────────
-  // New format: col E header is a non-numeric label ("Type\Date").
-  // Old format: col E header is a day number ("1 Th", "1-Jan", etc.).
   let isNewFormat = false;
   for (const tabName of tabsToWrite) {
     if (!existingTabs.has(tabName)) continue;
-    const hdr = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: `${tabName}!E1`,
-    });
-    const col4val = ((hdr.data.values?.[0]?.[0]) ?? "").trim();
-    isNewFormat = col4val !== "" && isNaN(parseInt(col4val, 10));
-    break;
+    try {
+      const hdr = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${tabName}!1:100`,
+      });
+      const curRows = (hdr.data.values ?? []) as string[][];
+      if (curRows.length > 0) {
+        const fmt = detectFormat(curRows);
+        isNewFormat = fmt.hasSubRows;
+        break;
+      }
+    } catch { /* fallback */ }
   }
 
   // ── 4. Build row(s) to append ────────────────────────────────────────────
@@ -560,9 +619,7 @@ export async function updateAttendanceFromCsv(
 
   // 3. Detect format, build day-number → column index map
   const sheetHeader = sheetRows[0];
-  const col4        = (sheetHeader[4] ?? "").trim();
-  const isNewFmt    = col4 !== "" && isNaN(parseInt(col4, 10));
-  const dayColStart = isNewFmt ? 5 : 4;
+  const { dayColStart, hasSubRows: isNewFmt, typeCol } = detectFormat(sheetRows);
 
   // Map: 1-based day number (1–31) → 0-based column index in the sheet row
   const dayNumToColIdx = new Map<number, number>();
@@ -588,10 +645,10 @@ export async function updateAttendanceFromCsv(
     if (isNewFmt) {
       let j = ri + 1;
       while (j < sheetRows.length && !(sheetRows[j][0] ?? "").trim()) {
-        const sub = (sheetRows[j][4] ?? "").trim().toLowerCase();
-        if (sub === "clock in")       entry.clockIn  = j + 1;
-        else if (sub === "clock out") entry.clockOut = j + 1;
-        else if (sub === "total wk")  entry.hours    = j + 1;
+        const sub = (sheetRows[j][typeCol] ?? "").trim().toLowerCase();
+        if (sub === "clock in" || sub === "clock-in")       entry.clockIn  = j + 1;
+        else if (sub === "clock out" || sub === "clock-out") entry.clockOut = j + 1;
+        else if (sub === "total wk" || sub === "total work" || sub === "hours")  entry.hours    = j + 1;
         j++;
       }
       empRowMap.set(id, entry);
@@ -711,9 +768,7 @@ export async function clearAttendanceRange(
 
     // Detect format, build day-number → column index map
     const sheetHeader = sheetRows[0];
-    const col4        = (sheetHeader[4] ?? "").trim();
-    const isNewFmt    = col4 !== "" && isNaN(parseInt(col4, 10));
-    const dayColStart = isNewFmt ? 5 : 4;
+    const { dayColStart, hasSubRows: isNewFmt, typeCol } = detectFormat(sheetRows);
 
     const dayNumToColIdx = new Map<number, number>();
     for (let i = dayColStart; i < sheetHeader.length; i++) {
@@ -737,10 +792,10 @@ export async function clearAttendanceRange(
       if (isNewFmt) {
         let j = ri + 1;
         while (j < sheetRows.length && !(sheetRows[j][0] ?? "").trim()) {
-          const sub = (sheetRows[j][4] ?? "").trim().toLowerCase();
-          if (sub === "clock in")       entry.clockIn  = j + 1;
-          else if (sub === "clock out") entry.clockOut = j + 1;
-          else if (sub === "total wk")  entry.hours    = j + 1;
+          const sub = (sheetRows[j][typeCol] ?? "").trim().toLowerCase();
+          if (sub === "clock in" || sub === "clock-in")       entry.clockIn  = j + 1;
+          else if (sub === "clock out" || sub === "clock-out") entry.clockOut = j + 1;
+          else if (sub === "total wk" || sub === "total work" || sub === "hours")  entry.hours    = j + 1;
           j++;
         }
         if (id === empKey) { empRows = entry; break; }
@@ -936,10 +991,8 @@ export async function updateWFHFromExcel(
     if (!sheetRows.length) { errors.push(`Tab "${tabName}" is empty`); continue; }
 
     // Detect format + build day-number → column index map
-    const sheetHdr    = sheetRows[0];
-    const col4        = (sheetHdr[4] ?? "").trim();
-    const isNewFmt    = col4 !== "" && isNaN(parseInt(col4, 10));
-    const dayColStart = isNewFmt ? 5 : 4;
+    const sheetHdr = sheetRows[0];
+    const { dayColStart, hasSubRows: isNewFmt, typeCol } = detectFormat(sheetRows);
 
     const dayNumToColIdx = new Map<number, number>();
     for (let i = dayColStart; i < sheetHdr.length; i++) {
@@ -962,10 +1015,10 @@ export async function updateWFHFromExcel(
       if (isNewFmt) {
         let j = ri + 1;
         while (j < sheetRows.length && !(sheetRows[j][0] ?? "").trim()) {
-          const sub = (sheetRows[j][4] ?? "").trim().toLowerCase();
-          if (sub === "clock in")       entry.clockIn  = j + 1;
-          else if (sub === "clock out") entry.clockOut = j + 1;
-          else if (sub === "total wk")  entry.hours    = j + 1;
+          const sub = (sheetRows[j][typeCol] ?? "").trim().toLowerCase();
+          if (sub === "clock in" || sub === "clock-in")       entry.clockIn  = j + 1;
+          else if (sub === "clock out" || sub === "clock-out") entry.clockOut = j + 1;
+          else if (sub === "total wk" || sub === "total work" || sub === "hours")  entry.hours    = j + 1;
           j++;
         }
         empRowMap.set(id, entry);
@@ -1157,10 +1210,8 @@ export async function updateLeaveFromExcel(
     if (!sheetRows.length) { errors.push(`Tab "${tabName}" is empty`); continue; }
 
     // Detect format + build day-number → column index map
-    const sheetHdr    = sheetRows[0];
-    const col4        = (sheetHdr[4] ?? "").trim();
-    const isNewFmt    = col4 !== "" && isNaN(parseInt(col4, 10));
-    const dayColStart = isNewFmt ? 5 : 4;
+    const sheetHdr = sheetRows[0];
+    const { dayColStart, hasSubRows: isNewFmt } = detectFormat(sheetRows);
 
     const dayNumToColIdx = new Map<number, number>();
     for (let i = dayColStart; i < sheetHdr.length; i++) {

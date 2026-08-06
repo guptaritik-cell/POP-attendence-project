@@ -55,20 +55,55 @@ export function FilterBar({
 
   function exportCSV() {
     if (!filteredRecords.length) return;
+    const esc = (v: string | number) => {
+      const s = String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
     const headers = [
-      "Employee ID","Name","Team","BU Lead",
-      "Working Days","Present","Att %","WFH Days","WFH %","Total Hours","Hours %",
+      "Employee ID",
+      "Name",
+      "Team",
+      "BU Lead",
+      "Working Days",
+      "Present",
+      "Att %",
+      "WFH Days",
+      "WFH %",
+      "Half Days",
+      "Total Leave",
+      "Casual Leave (A)",
+      "Menstrual Leave (ML)",
+      "Sick Leave (SL)",
+      "Paid Leave (PL)",
+      "Total Hours",
+      "Hours %",
     ];
-    const rows = filteredRecords.map(r => [
-      r.employeeId, r.name, r.team, r.buLead,
-      r.workingDays, r.totalPresent.toFixed(1),
-      r.attendancePercent.toFixed(1),
-      r.totalWFH,
-      r.wfhPercent.toFixed(1),
-      r.totalHours,
-      r.hoursPercent.toFixed(1),
-    ]);
-    const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
+    const rows = filteredRecords.map(r => {
+      const casualLeave = Math.max(
+        0,
+        (r.totalAbsent || 0) - ((r.totalML || 0) + (r.totalSL || 0) + (r.totalPL || 0))
+      );
+      return [
+        r.employeeId,
+        r.name,
+        r.team,
+        r.buLead,
+        r.workingDays,
+        r.totalPresent.toFixed(1),
+        r.attendancePercent.toFixed(1),
+        r.totalWFH,
+        r.wfhPercent.toFixed(1),
+        r.totalHalfDay || 0,
+        r.totalAbsent || 0,
+        casualLeave,
+        r.totalML || 0,
+        r.totalSL || 0,
+        r.totalPL || 0,
+        r.totalHours,
+        r.hoursPercent.toFixed(1),
+      ];
+    });
+    const csv = [headers, ...rows].map(row => row.map(esc).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
