@@ -140,15 +140,15 @@
   html {
     @apply font-sans;
   }
-  /* Neutralize the browser's autofill background paint (Chrome's pale-yellow
-     highlight) so autofilled fields keep matching our own input background
-     instead of visually diverging from non-autofilled fields. */
+  /* Neutralize the browser's autofill background paint so autofilled fields keep
+     matching our own dark input background instead of visually diverging from non-autofilled fields. */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus {
-    -webkit-text-fill-color: #F5F5F5;
-    caret-color: #F5F5F5;
-    transition: background-color 600000s 0s, color 600000s 0s;
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0px 1000px #1E1E1E inset !important;
+    -webkit-text-fill-color: #F5F5F5 !important;
+    caret-color: #F5F5F5 !important;
   }
 }
 
