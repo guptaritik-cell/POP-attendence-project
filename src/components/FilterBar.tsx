@@ -150,7 +150,7 @@ export function FilterBar({
               <SelectItem
                 key={wr.weekNumber}
                 value={String(wr.weekNumber)}
-                className="text-xs text-[#F5F5F5] focus:bg-[rgba(255,77,0,0.15)]"
+                className="text-xs text-[#F5F5F5] focus:bg-[rgba(255,77,0,0.15)] focus:text-[#F5F5F5] data-[highlighted]:bg-[rgba(255,77,0,0.15)] data-[highlighted]:text-[#F5F5F5]"
               >
                 {wr.label}
               </SelectItem>

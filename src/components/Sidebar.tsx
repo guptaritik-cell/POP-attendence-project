@@ -8,7 +8,7 @@ import { signOut, useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, UsersRound, BarChart3, UserCircle, UserPlus, FilePlus2,
-  ClipboardList, ChevronLeft, ChevronRight, LogOut, BookOpen,
+  ClipboardList, ChevronLeft, ChevronRight, LogOut, BookOpen, UserCog,
 } from "lucide-react";
 import {
   Tooltip, TooltipContent, TooltipTrigger,
@@ -21,15 +21,21 @@ const BORDER_CLR  = "rgba(255,77,0,0.15)";
 const ACTIVE_BG   = "rgba(255,77,0,0.12)";
 const HOVER_BG    = "rgba(255,255,255,0.04)";
 
-const NAV_ITEMS = [
-  { label: "All Employees",    href: "/dashboard/all-employees",    Icon: Users },
-  { label: "Team View",        href: "/dashboard/team-view",        Icon: UsersRound },
-  { label: "Analytics",        href: "/dashboard/analytics",        Icon: BarChart3 },
-  { label: "Employee Profile", href: "/dashboard/employee-profile", Icon: UserCircle },
-  { label: "Employee Summary", href: "/dashboard/employee-summary", Icon: ClipboardList },
-  { label: "Add Member",       href: "/dashboard/add-member",       Icon: UserPlus },
-  { label: "Add Attendance",  href: "/dashboard/add-attendance",  Icon: FilePlus2 },
-  { label: "Annotation",      href: "/dashboard/annotation",      Icon: BookOpen },
+const NAV_ITEMS: {
+  label: string;
+  href: string;
+  Icon: typeof Users;
+  roles: ("admin" | "manager")[];
+}[] = [
+  { label: "All Employees",    href: "/dashboard/all-employees",    Icon: Users,       roles: ["admin", "manager"] },
+  { label: "Team View",        href: "/dashboard/team-view",        Icon: UsersRound,  roles: ["admin"] },
+  { label: "Analytics",        href: "/dashboard/analytics",        Icon: BarChart3,   roles: ["admin", "manager"] },
+  { label: "Employee Profile", href: "/dashboard/employee-profile", Icon: UserCircle,  roles: ["admin", "manager"] },
+  { label: "Employee Summary", href: "/dashboard/employee-summary", Icon: ClipboardList, roles: ["admin", "manager"] },
+  { label: "Add Member",       href: "/dashboard/add-member",       Icon: UserPlus,    roles: ["admin"] },
+  { label: "Add Attendance",  href: "/dashboard/add-attendance",  Icon: FilePlus2,    roles: ["admin"] },
+  { label: "Manage Managers", href: "/dashboard/manage-managers", Icon: UserCog,      roles: ["admin"] },
+  { label: "Annotation",      href: "/dashboard/annotation",      Icon: BookOpen,     roles: ["admin", "manager"] },
 ];
 
 function getInitials(name: string) {
@@ -42,6 +48,8 @@ export function Sidebar() {
   const router = useRouter();
   const { data: session } = useSession();
   const userName = session?.user?.name ?? "Admin";
+  const role = session?.user?.role ?? "admin";
+  const visibleNavItems = NAV_ITEMS.filter(item => item.roles.includes(role));
 
   return (
     <motion.aside
@@ -94,7 +102,7 @@ export function Sidebar() {
 
       {/* ── Nav items ── */}
       <nav className="flex-1 py-3 overflow-hidden">
-        {NAV_ITEMS.map(({ label, href, Icon }) => {
+        {visibleNavItems.map(({ label, href, Icon }) => {
           const isActive = pathname.startsWith(href);
           const item = (
             <Link
@@ -180,7 +188,9 @@ export function Sidebar() {
                 className="min-w-0"
               >
                 <p className="text-xs font-medium text-[#F5F5F5] truncate">{userName}</p>
-                <p className="text-[10px] text-[#888888]">Admin</p>
+                <p className="text-[10px] text-[#888888]">
+                  {role === "manager" ? `Manager · ${session?.user?.team ?? ""}` : "Admin"}
+                </p>
               </motion.div>
             )}
           </AnimatePresence>

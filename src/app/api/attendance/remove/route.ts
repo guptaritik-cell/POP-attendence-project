@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/requireAdmin";
 
 // The spreadsheet only holds data for the current year (same policy as the
 // summary / [month] routes). Months outside SHEET_YEAR contribute nothing.
@@ -16,6 +17,9 @@ function parseISODate(s: string): { year: number; month: number; day: number } |
 }
 
 export async function POST(req: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   let body: { employeeId?: string; from?: string; to?: string };
   try {
     body = await req.json();

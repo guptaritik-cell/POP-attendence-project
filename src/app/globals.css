@@ -140,6 +140,16 @@
   html {
     @apply font-sans;
   }
+  /* Neutralize the browser's autofill background paint (Chrome's pale-yellow
+     highlight) so autofilled fields keep matching our own input background
+     instead of visually diverging from non-autofilled fields. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #F5F5F5;
+    caret-color: #F5F5F5;
+    transition: background-color 600000s 0s, color 600000s 0s;
+  }
 }
 
 @layer utilities {

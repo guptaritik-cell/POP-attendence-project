@@ -78,7 +78,7 @@ export function TopBar() {
           <SelectContent className="bg-[#181818] border-[rgba(255,77,0,0.3)]">
             {MONTHS.map((m, i) => (
               <SelectItem key={i} value={String(i)}
-                className="text-xs text-[#F5F5F5] focus:bg-[rgba(255,77,0,0.15)] focus:text-white">
+                className="text-xs text-[#F5F5F5] focus:bg-[rgba(255,77,0,0.15)] focus:text-[#F5F5F5] data-[highlighted]:bg-[rgba(255,77,0,0.15)] data-[highlighted]:text-[#F5F5F5]">
                 {m}
               </SelectItem>
             ))}
@@ -92,7 +92,7 @@ export function TopBar() {
           <SelectContent className="bg-[#181818] border-[rgba(255,77,0,0.3)]">
             {YEARS.map(y => (
               <SelectItem key={y} value={String(y)}
-                className="text-xs text-[#F5F5F5] focus:bg-[rgba(255,77,0,0.15)] focus:text-white">
+                className="text-xs text-[#F5F5F5] focus:bg-[rgba(255,77,0,0.15)] focus:text-[#F5F5F5] data-[highlighted]:bg-[rgba(255,77,0,0.15)] data-[highlighted]:text-[#F5F5F5]">
                 {y}
               </SelectItem>
             ))}

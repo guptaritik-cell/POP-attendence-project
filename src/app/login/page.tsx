@@ -231,8 +231,7 @@ export default function LoginPage() {
                             onBlur={handleEmailBlur}
                             onKeyDown={(e) => e.key === "Enter" && handleContinue()}
                             placeholder="you@company.com"
-                            className="h-10 text-sm bg-[#222] text-[#F5F5F5] placeholder:text-[#555] border-[rgba(255,77,0,0.25)] focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00] autofill:bg-[#222]"
-                            style={{ WebkitBoxShadow: "0 0 0 1000px #222222 inset", WebkitTextFillColor: "#F5F5F5" }}
+                            className="h-10 text-sm text-[#F5F5F5] placeholder:text-[#555] placeholder:opacity-60 border-[rgba(255,77,0,0.25)] focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00]"
                           />
                           <AnimatePresence>
                             {emailError && (
@@ -312,7 +311,7 @@ export default function LoginPage() {
                             onChange={(e) => setPassword(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && handleSignIn()}
                             placeholder="Password"
-                            className="pr-10 bg-[#222] text-[#F5F5F5] border-[rgba(255,77,0,0.25)] focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00]"
+                            className="pr-10 text-[#F5F5F5] border-[rgba(255,77,0,0.25)] focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00]"
                           />
                           <button
                             type="button"

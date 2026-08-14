@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { addEmployee } from "@/lib/sheets";
+import { requireAdmin } from "@/lib/requireAdmin";
 
 const MONTH_LABELS = [
   "January","February","March","April","May","June",
@@ -19,6 +20,9 @@ interface AddEmployeeBody {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   let body: AddEmployeeBody;
 
   try {

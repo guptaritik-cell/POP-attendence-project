@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const MONTH_NAMES = [
   "january","february","march","april","may","june",
@@ -14,6 +16,11 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ month: string }> }
 ) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { month } = await params;
   const monthIndex = MONTH_NAMES.indexOf(month.toLowerCase());
 
@@ -42,7 +49,12 @@ export async function GET(
   try {
     const { getMonthData } = await import("@/lib/sheets");
     const data = await getMonthData(monthIndex, year);
-    return NextResponse.json(data, {
+
+    const scoped = session.user.role === "manager"
+      ? { ...data, records: data.records.filter(r => r.team === session.user.team) }
+      : data;
+
+    return NextResponse.json(scoped, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (err) {

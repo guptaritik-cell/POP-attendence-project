@@ -1,5 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { getManagersCollection } from "@/lib/mongodb";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -27,7 +29,27 @@ export const authOptions: NextAuthOptions = {
           };
         }
 
-        return null;
+        // Fallback: manager accounts stored in MongoDB. Any DB error must
+        // never block the admin path above — just fail this login attempt.
+        try {
+          const managers = await getManagersCollection();
+          const manager = await managers.findOne({ email: credentials.email });
+          if (!manager) return null;
+
+          const valid = await bcrypt.compare(credentials.password, manager.passwordHash);
+          if (!valid) return null;
+
+          return {
+            id: manager._id?.toString() ?? manager.email,
+            name: manager.name,
+            email: manager.email,
+            role: "manager",
+            team: manager.team,
+          };
+        } catch (err) {
+          console.error("[auth] manager lookup failed:", String(err));
+          return null;
+        }
       },
     }),
   ],
@@ -40,13 +62,15 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as { role?: string }).role;
+        token.role = user.role;
+        token.team = user.team;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { role?: string }).role = token.role as string;
+        session.user.role = token.role ?? "admin";
+        session.user.team = token.team;
       }
       return session;
     },

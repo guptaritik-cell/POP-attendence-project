@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { updateAttendanceFromCsv, type AttendanceUploadMode } from "@/lib/sheets";
 import { parseCsvText } from "@/lib/csvUtils";
+import { requireAdmin } from "@/lib/requireAdmin";
 
 // ── Multi-sheet Excel preprocessor ───────────────────────────────────────────
 //
@@ -257,6 +258,9 @@ interface UploadBody {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   let body: UploadBody;
   try {
     body = await req.json();

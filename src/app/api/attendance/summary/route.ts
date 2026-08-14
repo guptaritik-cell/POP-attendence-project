@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import type { AttendanceSymbol, DayRecord } from "@/types/attendance";
 
 // The spreadsheet only contains data for ONE specific year.
@@ -65,6 +67,11 @@ function parseISODate(s: string): { year: number; month: number; day: number } |
 }
 
 export async function GET(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+  }
+
   const url        = new URL(req.url);
   const employeeId = (url.searchParams.get("employeeId") ?? "").trim();
   const fromStr    = (url.searchParams.get("from") ?? "").trim();
@@ -129,6 +136,13 @@ export async function GET(req: Request) {
       const monthData = await getMonthData(month, year);
       const record = monthData.records.find(r => r.employeeId === employeeId);
       if (!record) continue;
+
+      if (session.user.role === "manager" && record.team !== session.user.team) {
+        return NextResponse.json(
+          { success: false, message: "Forbidden" },
+          { status: 403, headers: { "Cache-Control": "no-store" } },
+        );
+      }
 
       foundInAnyMonth = true;
       if (!employeeName) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { updateLeaveFromExcel } from "@/lib/sheets";
+import { requireAdmin } from "@/lib/requireAdmin";
 
 export const maxDuration = 30;
 
@@ -36,6 +37,9 @@ function peekHeaders(buffer: Buffer): string[] {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   let body: LeaveExcelBody;
   try {
     body = await req.json();
