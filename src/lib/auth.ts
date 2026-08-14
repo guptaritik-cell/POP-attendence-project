@@ -1,10 +1,15 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { getManagersCollection } from "@/lib/mongodb";
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET!,
+    }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -60,10 +65,22 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account }) {
+      if (account?.provider === "google") {
+        const adminEmail = process.env.ADMIN_EMAIL;
+        return !!adminEmail && user.email?.toLowerCase() === adminEmail.toLowerCase();
+      }
+      return true;
+    },
+    async jwt({ token, user, account }) {
       if (user) {
-        token.role = user.role;
-        token.team = user.team;
+        if (account?.provider === "google") {
+          token.role = "admin";
+          token.team = undefined;
+        } else {
+          token.role = user.role;
+          token.team = user.team;
+        }
       }
       return token;
     },

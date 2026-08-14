@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Eye, EyeOff, Edit2, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Edit2, Loader2, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +64,26 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+// NextAuth redirects back here with ?error=<code> when a provider sign-in
+// fails — map its codes to a message that actually tells the user what to do.
+function googleSignInErrorMessage(code: string): string {
+  switch (code) {
+    case "AccessDenied":
+      return "This Google account isn't authorized to access this platform.";
+    case "OAuthAccountNotLinked":
+      return "This Google account isn't linked to any user here.";
+    case "OAuthSignin":
+    case "OAuthCallback":
+    case "OAuthCreateAccount":
+    case "Callback":
+      return "Something went wrong signing in with Google. Please try again.";
+    case "Configuration":
+      return "Google sign-in isn't configured correctly. Contact your admin.";
+    default:
+      return "Sign-in failed. Please try again.";
+  }
+}
+
 /* Slide variants */
 const slide = {
   enterRight: { x: 80, opacity: 0 },
@@ -79,8 +99,25 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState("");
   const router = useRouter();
   const emailRef = useRef<HTMLInputElement>(null);
+
+  // NextAuth bounces back to /login?error=<code> on a failed Google sign-in.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("error");
+    if (code) {
+      setGoogleError(googleSignInErrorMessage(code));
+      router.replace("/login");
+    }
+  }, [router]);
+
+  function handleGoogleSignIn() {
+    setGoogleError("");
+    setGoogleLoading(true);
+    signIn("google", { callbackUrl: "/dashboard/all-employees" });
+  }
 
   function handleEmailBlur() {
     if (email && !isValidEmail(email)) {
@@ -257,6 +294,54 @@ export default function LoginPage() {
                             Continue →
                           </Button>
                         </motion.div>
+
+                        {/* Divider */}
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                          <span className="text-[11px]" style={{ color: "#555" }}>or</span>
+                          <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.08)" }} />
+                        </div>
+
+                        {/* Google sign-in */}
+                        <button
+                          type="button"
+                          onClick={handleGoogleSignIn}
+                          disabled={googleLoading}
+                          className="w-full flex items-center justify-center gap-2.5 py-3 rounded-[12px] text-sm font-semibold transition-colors disabled:opacity-70"
+                          style={{
+                            background: "#1A1A1A",
+                            border: "1px solid rgba(255,255,255,0.12)",
+                            color: "#F5F5F5",
+                            cursor: googleLoading ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {googleLoading ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 48 48">
+                              <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+                              <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+                              <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+                              <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+                            </svg>
+                          )}
+                          Continue with Google
+                        </button>
+
+                        <AnimatePresence>
+                          {googleError && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -4 }}
+                              transition={{ duration: 0.15 }}
+                              className="flex items-start gap-1.5 text-[12px] text-red-400 -mt-2"
+                            >
+                              <AlertCircle size={13} className="flex-shrink-0 mt-[1px]" />
+                              {googleError}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </motion.div>
                   ) : (

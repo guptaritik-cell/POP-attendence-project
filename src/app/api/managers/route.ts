@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
 
-  let body: { email?: string; password?: string; name?: string; team?: string };
+  let body: { email?: string; originalEmail?: string; password?: string; name?: string; team?: string };
   try {
     body = await req.json();
   } catch {
@@ -43,17 +43,18 @@ export async function POST(req: Request) {
   }
 
   const email = (body.email ?? "").trim().toLowerCase();
+  const originalEmail = (body.originalEmail ?? "").trim().toLowerCase() || null;
   const password = body.password ?? "";
   const name = (body.name ?? "").trim();
   const team = (body.team ?? "").trim();
 
-  if (!email || !password || !name || !team) {
+  if (!email || !name || !team) {
     return NextResponse.json(
-      { success: false, message: "email, password, name, and team are all required" },
+      { success: false, message: "email, name, and team are all required" },
       { status: 422 },
     );
   }
-  if (password.length < 6) {
+  if (password && password.length < 6) {
     return NextResponse.json(
       { success: false, message: "Password must be at least 6 characters" },
       { status: 422 },
@@ -62,13 +63,39 @@ export async function POST(req: Request) {
 
   try {
     const managers = await getManagersCollection();
-    const passwordHash = await bcrypt.hash(password, 10);
+    // Editing looks up the manager by their ORIGINAL email (which may now be
+    // changing); creating a new manager looks up by the email itself.
+    const lookupEmail = originalEmail ?? email;
+    const existing = await managers.findOne({ email: lookupEmail });
+
+    if (!existing && !password) {
+      return NextResponse.json(
+        { success: false, message: "Password is required for a new manager" },
+        { status: 422 },
+      );
+    }
+
+    // Renaming to an email already used by a different manager isn't allowed.
+    if (email !== lookupEmail) {
+      const collision = await managers.findOne({ email });
+      if (collision) {
+        return NextResponse.json(
+          { success: false, message: "A manager with that email already exists" },
+          { status: 409 },
+        );
+      }
+    }
+
     const now = new Date();
+    const setFields: Record<string, unknown> = { email, name, team, updatedAt: now };
+    if (password) {
+      setFields.passwordHash = await bcrypt.hash(password, 10);
+    }
 
     await managers.updateOne(
-      { email },
+      { email: lookupEmail },
       {
-        $set: { email, passwordHash, name, team, updatedAt: now },
+        $set: setFields,
         $setOnInsert: { createdAt: now },
       },
       { upsert: true },

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { UserCog, Loader2, CheckCircle2, XCircle, Trash2 } from "lucide-react";
+import { UserCog, Loader2, CheckCircle2, XCircle, Trash2, Pencil, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useAttendanceStore } from "@/lib/store";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { ManagerPublic } from "@/types/manager";
 
 const inputClass = "h-9 text-sm bg-[#1E1E1E] border-[rgba(255,77,0,0.25)] text-[#F5F5F5] placeholder:text-[#555] focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00]";
@@ -33,6 +34,13 @@ export default function ManageManagersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [alert, setAlert] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  // Editing an existing manager's credentials — null when adding a new one.
+  const [editingEmail, setEditingEmail] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ManagerPublic | null>(null);
+
+  const isEditing = editingEmail !== null;
+
   const loadManagers = useCallback(async () => {
     setLoadingList(true);
     try {
@@ -46,47 +54,82 @@ export default function ManageManagersPage() {
 
   useEffect(() => { loadManagers(); }, [loadManagers]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  function resetForm() {
+    setEditingEmail(null);
+    setEmail(""); setPassword(""); setName(""); setTeam("");
+  }
+
+  function handleEditClick(m: ManagerPublic) {
+    setAlert(null);
+    setEditingEmail(m.email);
+    setEmail(m.email);
+    setName(m.name);
+    setTeam(m.team);
+    setPassword("");
+  }
+
+  function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
     setAlert(null);
-    if (!email.trim() || !password || !name.trim() || !team) {
+    if (!email.trim() || !name.trim() || !team || (!isEditing && !password)) {
       setAlert({ type: "error", message: "All fields are required." });
       return;
     }
+    // Changing an existing manager's credentials needs an explicit confirmation.
+    if (isEditing) {
+      setConfirmOpen(true);
+    } else {
+      void saveManager();
+    }
+  }
+
+  async function saveManager() {
     setSubmitting(true);
     try {
       const res = await fetch("/api/managers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password, name: name.trim(), team }),
+        body: JSON.stringify({
+          email: email.trim(),
+          originalEmail: editingEmail,
+          password,
+          name: name.trim(),
+          team,
+        }),
       });
       const data = await res.json();
       if (!data.success) {
         setAlert({ type: "error", message: data.message ?? "Failed to save manager" });
         return;
       }
-      setAlert({ type: "success", message: `Manager ${email} saved.` });
-      setEmail(""); setPassword(""); setName(""); setTeam("");
+      setAlert({ type: "success", message: `Manager ${email} ${isEditing ? "updated" : "saved"}.` });
+      resetForm();
       loadManagers();
     } catch (err) {
       setAlert({ type: "error", message: String(err) });
     } finally {
       setSubmitting(false);
+      setConfirmOpen(false);
     }
   }
 
-  async function handleDelete(managerEmail: string) {
-    if (!confirm(`Remove manager access for ${managerEmail}?`)) return;
+  async function handleDeleteConfirmed() {
+    if (!deleteTarget) return;
+    setSubmitting(true);
     try {
-      const res = await fetch(`/api/managers?email=${encodeURIComponent(managerEmail)}`, { method: "DELETE" });
+      const res = await fetch(`/api/managers?email=${encodeURIComponent(deleteTarget.email)}`, { method: "DELETE" });
       const data = await res.json();
       if (!data.success) {
         setAlert({ type: "error", message: data.message ?? "Failed to remove manager" });
         return;
       }
+      if (editingEmail === deleteTarget.email) resetForm();
       loadManagers();
     } catch (err) {
       setAlert({ type: "error", message: String(err) });
+    } finally {
+      setSubmitting(false);
+      setDeleteTarget(null);
     }
   }
 
@@ -101,12 +144,27 @@ export default function ManageManagersPage() {
         </p>
       </div>
 
-      {/* Add manager form */}
+      {/* Add / edit manager form */}
       <form
-        onSubmit={handleSubmit}
+        onSubmit={handleFormSubmit}
         className="rounded-xl p-5 space-y-4"
         style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.15)" }}
       >
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-[#F5F5F5]">
+            {isEditing ? `Editing ${editingEmail}` : "Add a new manager"}
+          </p>
+          {isEditing && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="flex items-center gap-1 text-xs text-[#888888] hover:text-[#F5F5F5] transition-colors"
+            >
+              <X size={13} /> Cancel edit
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label>Name</Label>
@@ -114,11 +172,23 @@ export default function ManageManagersPage() {
           </div>
           <div>
             <Label>Email</Label>
-            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="manager@company.com" className={inputClass} />
+            <Input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="manager@company.com"
+              className={inputClass}
+            />
           </div>
           <div>
             <Label>Password</Label>
-            <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 6 characters" className={inputClass} />
+            <Input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder={isEditing ? "Leave blank to keep current password" : "At least 6 characters"}
+              className={inputClass}
+            />
           </div>
           <div>
             <Label>Team</Label>
@@ -165,8 +235,8 @@ export default function ManageManagersPage() {
             cursor: submitting ? "not-allowed" : "pointer",
           }}
         >
-          {submitting && <Loader2 size={14} className="animate-spin" />}
-          Save Manager
+          {submitting && !confirmOpen && <Loader2 size={14} className="animate-spin" />}
+          {isEditing ? "Update Manager" : "Save Manager"}
         </Button>
       </form>
 
@@ -192,18 +262,65 @@ export default function ManageManagersPage() {
                   <p className="text-sm font-medium text-[#F5F5F5] truncate">{m.name}</p>
                   <p className="text-[11px] text-[#888888] truncate">{m.email} · {m.team}</p>
                 </div>
-                <button
-                  onClick={() => handleDelete(m.email)}
-                  className="flex-shrink-0 ml-3 text-[#888888] hover:text-[#f87171] transition-colors"
-                  title="Remove"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                  <button
+                    onClick={() => handleEditClick(m)}
+                    className="text-[#888888] hover:text-[#FF7A35] transition-colors"
+                    title="Edit"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    onClick={() => setDeleteTarget(m)}
+                    className="text-[#888888] hover:text-[#f87171] transition-colors"
+                    title="Remove"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        busy={submitting}
+        title="Update manager credentials?"
+        confirmLabel="Yes, update"
+        busyLabel="Updating…"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={saveManager}
+        message={
+          <>
+            Do you really want to make changes to{" "}
+            <span className="text-[#F5F5F5] font-medium">{name || editingEmail}</span>&apos;s login
+            {editingEmail && email.trim().toLowerCase() !== editingEmail.toLowerCase() && (
+              <> (email will change to <span className="text-[#F5F5F5] font-medium">{email.trim()}</span>)</>
+            )}
+            {password ? " and password" : ""}? They&apos;ll need the new details to sign in.
+          </>
+        }
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        busy={submitting}
+        destructive
+        title="Remove manager access?"
+        confirmLabel="Yes, remove"
+        busyLabel="Removing…"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirmed}
+        message={
+          <>
+            This permanently removes login access for{" "}
+            <span className="text-[#F5F5F5] font-medium">{deleteTarget?.name}</span>{" "}
+            ({deleteTarget?.email}).
+          </>
+        }
+      />
     </div>
   );
 }
