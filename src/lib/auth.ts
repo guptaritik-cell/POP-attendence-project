@@ -60,6 +60,7 @@ export const authOptions: NextAuthOptions = {
   ],
   pages: {
     signIn: "/login",
+    error: "/login",
   },
   session: {
     strategy: "jwt",
@@ -67,16 +68,41 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === "google") {
-        const adminEmail = process.env.ADMIN_EMAIL;
-        return !!adminEmail && user.email?.toLowerCase() === adminEmail.toLowerCase();
+        const email = user.email?.toLowerCase();
+        const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+        if (email === adminEmail) return true;
+
+        // Also allow managers whose email is already registered in MongoDB.
+        try {
+          const managers = await getManagersCollection();
+          const manager = await managers.findOne({ email });
+          return !!manager;
+        } catch (err) {
+          console.error("[auth] google manager lookup failed:", String(err));
+          return false;
+        }
       }
       return true;
     },
     async jwt({ token, user, account }) {
       if (user) {
         if (account?.provider === "google") {
-          token.role = "admin";
-          token.team = undefined;
+          const email = user.email?.toLowerCase();
+          const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase();
+          if (email === adminEmail) {
+            token.role = "admin";
+            token.team = undefined;
+          } else {
+            try {
+              const managers = await getManagersCollection();
+              const manager = await managers.findOne({ email });
+              token.role = "manager";
+              token.team = manager?.team;
+              if (manager?.name) token.name = manager.name;
+            } catch (err) {
+              console.error("[auth] google manager lookup failed:", String(err));
+            }
+          }
         } else {
           token.role = user.role;
           token.team = user.team;
