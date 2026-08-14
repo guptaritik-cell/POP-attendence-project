@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAttendanceStore } from "@/lib/store";
 import { getWeekRanges } from "@/lib/attendanceUtils";
 import type { EmployeeMonthRecord, WeekRange, AttendanceSymbol } from "@/types/attendance";
+import { SYMBOL_META, badgeStyle } from "@/lib/attendanceSymbols";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TEAM_COLORS: Record<string, string> = {
@@ -26,16 +27,10 @@ const TEAM_COLORS: Record<string, string> = {
 };
 
 const BADGE_STYLES: Record<AttendanceSymbol, { bg: string; color: string; label: string }> = {
-  P:   { bg: "rgba(22,163,74,0.18)",   color: "#4ade80", label: "P"   },
-  A:   { bg: "rgba(220,38,38,0.18)",   color: "#f87171", label: "A"   },
-  WFH: { bg: "rgba(255,77,0,0.18)",  color: "#FF7A35", label: "WFH" },
-  HD:  { bg: "rgba(217,119,6,0.18)",   color: "#fbbf24", label: "HD"  },
-  NHD: { bg: "rgba(100,100,100,0.14)", color: "#666",    label: "NH"  },
-  WO:  { bg: "rgba(50,50,50,0.14)",    color: "#444",    label: "WO"  },
-  ML:  { bg: "rgba(236,72,153,0.18)",  color: "#f472b6", label: "ML"  },
-  SL:  { bg: "rgba(251,146,60,0.18)",  color: "#fb923c", label: "SL"  },
-  PL:  { bg: "rgba(234,179,8,0.18)",   color: "#eab308", label: "PL"  },
-  "":  { bg: "transparent",            color: "#333",    label: "—"   },
+  ...(Object.fromEntries(
+    Object.keys(SYMBOL_META).map(code => [code, badgeStyle(code)])
+  ) as Record<Exclude<AttendanceSymbol, "">, { bg: string; color: string; label: string }>),
+  "":  { bg: "transparent", color: "#333", label: "—" },
 };
 
 const TOOLTIP_STYLE = {

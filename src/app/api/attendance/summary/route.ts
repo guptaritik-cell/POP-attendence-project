@@ -93,7 +93,8 @@ export async function GET(req: Request) {
 
     // Accumulators
     const counts: Record<AttendanceSymbol, number> = {
-      P: 0, A: 0, HD: 0, WFH: 0, NHD: 0, WO: 0, ML: 0, SL: 0, PL: 0, "": 0,
+      P: 0, A: 0, HD: 0, WFH: 0, NHD: 0, WO: 0, ML: 0, SL: 0, PL: 0,
+      ADL: 0, BEL: 0, COL: 0, MRL: 0, MAL: 0, MIL: 0, UNL: 0, "": 0,
     };
     const dayBreakdown: DaySummary[] = [];
 
@@ -190,12 +191,19 @@ export async function GET(req: Request) {
     const ml        = counts.ML;
     const sl        = counts.SL;
     const pl        = counts.PL;
+    const adl       = counts.ADL;
+    const bel       = counts.BEL;
+    const col       = counts.COL;
+    const mrl       = counts.MRL;
+    const mal       = counts.MAL;
+    const mil       = counts.MIL;
+    const unl       = counts.UNL;
     const weekOff   = counts.WO;
     const holiday   = counts.NHD;
-    const totalLeaves = ml + sl + pl;
+    const totalLeaves = ml + sl + pl + adl + bel + col + mrl + mal + mil + unl;
 
     // Working days exclude week-offs, national holidays, and empty/future days
-    const workingDays = present + wfh + halfDay + absent + ml + sl + pl;
+    const workingDays = present + wfh + halfDay + absent + totalLeaves;
     // Attendance credit: full for P/WFH, half for HD
     const attendedCredit   = present + wfh + halfDay * 0.5;
     const attendancePercent =
@@ -242,7 +250,11 @@ export async function GET(req: Request) {
           wfh,
           absent,
           halfDay,
-          leaves: { ML: ml, SL: sl, PL: pl, total: totalLeaves },
+          leaves: {
+            ML: ml, SL: sl, PL: pl,
+            ADL: adl, BEL: bel, COL: col, MRL: mrl, MAL: mal, MIL: mil, UNL: unl,
+            total: totalLeaves,
+          },
           weekOff,
           holiday,
           workingDays,

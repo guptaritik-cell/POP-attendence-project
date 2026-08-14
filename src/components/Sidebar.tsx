@@ -8,7 +8,7 @@ import { signOut, useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, UsersRound, BarChart3, UserCircle, UserPlus, FilePlus2,
-  ClipboardList, ChevronLeft, ChevronRight, LogOut,
+  ClipboardList, ChevronLeft, ChevronRight, LogOut, BookOpen,
 } from "lucide-react";
 import {
   Tooltip, TooltipContent, TooltipTrigger,
@@ -29,6 +29,7 @@ const NAV_ITEMS = [
   { label: "Employee Summary", href: "/dashboard/employee-summary", Icon: ClipboardList },
   { label: "Add Member",       href: "/dashboard/add-member",       Icon: UserPlus },
   { label: "Add Attendance",  href: "/dashboard/add-attendance",  Icon: FilePlus2 },
+  { label: "Annotation",      href: "/dashboard/annotation",      Icon: BookOpen },
 ];
 
 function getInitials(name: string) {

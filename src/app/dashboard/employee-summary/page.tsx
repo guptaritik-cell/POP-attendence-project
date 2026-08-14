@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAttendanceStore } from "@/lib/store";
+import { SYMBOL_META } from "@/lib/attendanceSymbols";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TEAM_COLORS: Record<string, string> = {
@@ -23,11 +24,9 @@ const TEAM_COLORS: Record<string, string> = {
   "Finance":     "#f97316",
 };
 
-const LEAVE_META: Record<"ML" | "SL" | "PL", { label: string; color: string }> = {
-  ML: { label: "Menstrual Leave", color: "#f472b6" },
-  SL: { label: "Sick Leave",      color: "#fb923c" },
-  PL: { label: "Paid Leave",      color: "#eab308" },
-};
+const LEAVE_CODES = Object.values(SYMBOL_META)
+  .filter(m => m.category === "leave")
+  .map(m => m.code);
 
 // ── API response shape ─────────────────────────────────────────────────────────
 interface SummaryResponse {
@@ -40,7 +39,7 @@ interface SummaryResponse {
     wfh: number;
     absent: number;
     halfDay: number;
-    leaves: { ML: number; SL: number; PL: number; total: number };
+    leaves: Record<string, number> & { total: number };
     weekOff: number;
     holiday: number;
     workingDays: number;
@@ -212,9 +211,10 @@ export default function EmployeeSummaryPage() {
       ["WFH %",              `${summary.wfhPercent}%`],
       ["Half Days",          summary.halfDay],
       ["Absent",             summary.absent],
-      ["Menstrual Leave (ML)", summary.leaves.ML],
-      ["Sick Leave (SL)",      summary.leaves.SL],
-      ["Paid Leave (PL)",      summary.leaves.PL],
+      ...LEAVE_CODES.map(code => [
+        `${SYMBOL_META[code].fullName} (${code})`,
+        summary.leaves[code] ?? 0,
+      ] as [string, number]),
       ["Total Leaves",       summary.leaves.total],
       ["Week Offs",          summary.weekOff],
       ["Holidays",           summary.holiday],
@@ -440,22 +440,25 @@ export default function EmployeeSummaryPage() {
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                {(["ML", "SL", "PL"] as const).map(key => (
-                  <div
-                    key={key}
-                    className="flex items-center justify-between px-4 py-3 rounded-lg"
-                    style={{ background: "#222222", border: `1px solid ${LEAVE_META[key].color}33` }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: LEAVE_META[key].color }} />
-                      <div>
-                        <p className="text-sm font-semibold" style={{ color: LEAVE_META[key].color }}>{key}</p>
-                        <p className="text-[10px] text-[#888888]">{LEAVE_META[key].label}</p>
+                {LEAVE_CODES.map(code => {
+                  const meta = SYMBOL_META[code];
+                  return (
+                    <div
+                      key={code}
+                      className="flex items-center justify-between px-4 py-3 rounded-lg"
+                      style={{ background: "#222222", border: `1px solid ${meta.color}33` }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: meta.color }} />
+                        <div>
+                          <p className="text-sm font-semibold" style={{ color: meta.color }}>{code}</p>
+                          <p className="text-[10px] text-[#888888]">{meta.fullName}</p>
+                        </div>
                       </div>
+                      <span className="text-xl font-bold text-[#F5F5F5]">{result.summary.leaves[code] ?? 0}</span>
                     </div>
-                    <span className="text-xl font-bold text-[#F5F5F5]">{result.summary.leaves[key]}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               {(result.summary.weekOff > 0 || result.summary.holiday > 0) && (
                 <p className="text-[11px] text-[#666] mt-4">

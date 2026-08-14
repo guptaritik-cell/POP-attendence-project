@@ -8,6 +8,7 @@ import type {
   WeekRange,
   Employee,
 } from "@/types/attendance";
+import { OTHER_LEAVE_CODES, emptyOtherLeaves } from "@/lib/attendanceSymbols";
 
 // Full names used for display in the UI
 const MONTH_DISPLAY_NAMES = [
@@ -73,6 +74,13 @@ function parseSymbol(raw: string): AttendanceSymbol {
   if (s === "ML") return "ML";   // Menstrual Leave
   if (s === "SL") return "SL";   // Sick Leave
   if (s === "PL") return "PL";   // Paid Leave
+  if (s === "ADL") return "ADL"; // Adoption Leave
+  if (s === "BEL") return "BEL"; // Bereavement Leave
+  if (s === "COL" || s === "CO") return "COL"; // Comp Off
+  if (s === "MRL") return "MRL"; // Marriage Leave
+  if (s === "MAL") return "MAL"; // Maternity Leave
+  if (s === "MIL") return "MIL"; // Miscarriage Leave
+  if (s === "UNL") return "UNL"; // Unpaid Leave
   return "";
 }
 
@@ -83,6 +91,8 @@ function parseSymbol(raw: string): AttendanceSymbol {
 //   (immune to missing/typo WO symbols; same value for every employee)
 //
 // Attendance %  =  (P + WFH + 0.5×HD)  ÷  companyWorkingDays  × 100
+//
+// totalAbsent   =  A only (ML/SL/PL are tracked separately, not absences)
 //
 // Hours %       =  totalHours  ÷  (A + P + WFH + HD) × 9  × 100
 //   Denominator = only days the employee had actual data (handles current month
@@ -98,7 +108,8 @@ function computeRecord(
 ): EmployeeMonthRecord {
   let totalPresent = 0, totalWFH = 0, totalAbsent = 0, totalHalfDay = 0;
   let totalML = 0, totalSL = 0, totalPL = 0;
-  let daysWithData = 0; // A/ML/SL/PL + P + WFH + HD
+  const otherLeaves = emptyOtherLeaves();
+  let daysWithData = 0; // A/ML/SL/PL/otherLeaves + P + WFH + HD
   let totalMinutes = 0;
 
   for (const day of days) {
@@ -109,10 +120,10 @@ function computeRecord(
     else if (s === "WFH") { totalPresent += 1; totalWFH += 1; }
     else if (s === "HD")  { totalPresent += 0.5; totalHalfDay += 1; }
     else if (s === "A")   { totalAbsent += 1; }
-    // Leave types — each counts as 1 absent day
-    else if (s === "ML")  { totalAbsent += 1; totalML += 1; }
-    else if (s === "SL")  { totalAbsent += 1; totalSL += 1; }
-    else if (s === "PL")  { totalAbsent += 1; totalPL += 1; }
+    else if (s === "ML")  { totalML += 1; }
+    else if (s === "SL")  { totalSL += 1; }
+    else if (s === "PL")  { totalPL += 1; }
+    else if (OTHER_LEAVE_CODES.includes(s)) { otherLeaves[s] += 1; }
     totalMinutes += day.hoursMinutes ?? 0;
   }
 
@@ -131,7 +142,7 @@ function computeRecord(
   return {
     employeeId, name, team, buLead, days,
     totalPresent, totalWFH, totalAbsent, totalHalfDay,
-    totalML, totalSL, totalPL,
+    totalML, totalSL, totalPL, otherLeaves,
     workingDays, attendancePercent, wfhPercent, totalHours, hoursPercent,
   };
 }
@@ -1127,9 +1138,17 @@ export async function updateLeaveFromExcel(
 
   // Leave type → attendance symbol
   const LEAVE_SYMBOL: Record<string, AttendanceSymbol> = {
-    "menstrual leave": "ML",
-    "sick leave":      "SL",
-    "paid leave":      "PL",
+    "menstrual leave":    "ML",
+    "sick leave":         "SL",
+    "paid leave":         "PL",
+    "adoption leave":     "ADL",
+    "bereavement leave":  "BEL",
+    "comp off":           "COL",
+    "comp offs":          "COL",
+    "marriage leave":     "MRL",
+    "maternity leave":    "MAL",
+    "miscarriage leave":  "MIL",
+    "unpaid leave":       "UNL",
   };
 
   const serialToDate = (n: number) => new Date((n - 25569) * 86400 * 1000);
