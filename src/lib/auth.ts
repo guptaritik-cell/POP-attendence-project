@@ -23,7 +23,8 @@ export const authOptions: NextAuthOptions = {
         const adminPassword = process.env.ADMIN_PASSWORD;
 
         if (
-          credentials.email === adminEmail &&
+          adminEmail &&
+          credentials.email.trim().toLowerCase() === adminEmail.trim().toLowerCase() &&
           credentials.password === adminPassword
         ) {
           return {
@@ -38,11 +39,18 @@ export const authOptions: NextAuthOptions = {
         // never block the admin path above — just fail this login attempt.
         try {
           const managers = await getManagersCollection();
-          const manager = await managers.findOne({ email: credentials.email });
-          if (!manager) return null;
+          const email = credentials.email.trim().toLowerCase();
+          const manager = await managers.findOne({ email });
+          if (!manager) {
+            console.error(`[auth] no manager found for email: ${email}`);
+            return null;
+          }
 
           const valid = await bcrypt.compare(credentials.password, manager.passwordHash);
-          if (!valid) return null;
+          if (!valid) {
+            console.error(`[auth] wrong password for manager: ${email}`);
+            return null;
+          }
 
           return {
             id: manager._id?.toString() ?? manager.email,
