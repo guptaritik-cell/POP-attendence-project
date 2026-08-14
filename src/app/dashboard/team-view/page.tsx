@@ -259,7 +259,7 @@ export default function TeamViewPage() {
 
         {/* Pills row — horizontal scroll, never wraps */}
         <div
-          className="px-6 py-2 flex items-center gap-2 overflow-x-auto"
+          className="px-4 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto"
           style={{ borderBottom: "1px solid rgba(255,77,0,0.08)", scrollbarWidth: "none" }}
         >
           {["", ...allTeams].map(team => {
@@ -325,7 +325,7 @@ export default function TeamViewPage() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-4 gap-4 px-6 pt-4 pb-4"
+        className="grid grid-cols-2 sm:grid-cols-4 gap-4 px-4 sm:px-6 pt-4 pb-4"
       >
         <motion.div variants={cardVariants}>
           <StatCard label="Total Members" value={stats?.total ?? "—"} />
@@ -354,7 +354,7 @@ export default function TeamViewPage() {
       </motion.div>
 
       {/* ── Attendance table ── */}
-      <div className="px-6 py-4">
+      <div className="px-4 sm:px-6 py-4">
         <AttendanceTable
           records={displayRecords}
           columnHeaders={monthData?.columnHeaders ?? []}
@@ -366,7 +366,7 @@ export default function TeamViewPage() {
       </div>
 
       {/* ── Charts section ── */}
-      <div className="px-6 space-y-6">
+      <div className="px-4 sm:px-6 space-y-6">
         {/* Team Comparison — only when All Teams */}
         <AnimatePresence>
           {selectedTeam === "" && (

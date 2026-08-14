@@ -139,7 +139,7 @@ export default function AllEmployeesPage() {
   return (
     <div className="flex flex-col min-h-full pb-16">
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-4 px-6 py-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 px-4 sm:px-6 py-5">
         <StatCard
           label="Total Employees"
           value={stats?.total ?? "—"}
@@ -184,7 +184,7 @@ export default function AllEmployeesPage() {
       />
 
       {/* Table */}
-      <div className="px-6 py-4 flex-1">
+      <div className="px-4 sm:px-6 py-4 flex-1">
         <AttendanceTable
           records={displayRecords}
           columnHeaders={monthData?.columnHeaders ?? []}

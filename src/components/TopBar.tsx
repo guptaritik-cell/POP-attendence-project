@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Menu } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -50,11 +50,12 @@ export function TopBar() {
     selectedMonth, selectedYear,
     setMonth, setYear,
     isLoading, triggerRefresh, lastFetched,
+    setMobileNavOpen,
   } = useAttendanceStore();
 
   return (
     <header
-      className="flex-shrink-0 h-16 flex items-center justify-between px-6 gap-4"
+      className="flex-shrink-0 h-16 flex items-center justify-between px-3 sm:px-6 gap-2 sm:gap-4 overflow-x-auto"
       style={{
         background: "#0D0D0D",
         borderBottom: "1px solid rgba(255,77,0,0.15)",
@@ -63,16 +64,25 @@ export function TopBar() {
         zIndex: 30,
       }}
     >
+      {/* Hamburger — mobile only */}
+      <button
+        onClick={() => setMobileNavOpen(true)}
+        className="md:hidden flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[#888888]"
+        aria-label="Open menu"
+      >
+        <Menu size={18} />
+      </button>
+
       {/* Page title */}
-      <h1 className="text-[15px] font-semibold text-[#F5F5F5] whitespace-nowrap">
+      <h1 className="text-[13px] sm:text-[15px] font-semibold text-[#F5F5F5] whitespace-nowrap flex-shrink-0">
         {title}
       </h1>
 
       {/* Month + Year selectors — only on month-snapshot pages */}
       {showMonthControls ? (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <Select value={String(selectedMonth)} onValueChange={v => setMonth(Number(v))}>
-          <SelectTrigger className="h-8 w-32 text-xs border-[rgba(255,77,0,0.3)] bg-[#181818] text-[#F5F5F5]">
+          <SelectTrigger className="h-8 w-[88px] sm:w-32 text-xs border-[rgba(255,77,0,0.3)] bg-[#181818] text-[#F5F5F5]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-[#181818] border-[rgba(255,77,0,0.3)]">
@@ -86,7 +96,7 @@ export function TopBar() {
         </Select>
 
         <Select value={String(selectedYear)} onValueChange={v => setYear(Number(v))}>
-          <SelectTrigger className="h-8 w-24 text-xs border-[rgba(255,77,0,0.3)] bg-[#181818] text-[#F5F5F5]">
+          <SelectTrigger className="h-8 w-20 sm:w-24 text-xs border-[rgba(255,77,0,0.3)] bg-[#181818] text-[#F5F5F5]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-[#181818] border-[rgba(255,77,0,0.3)]">
@@ -104,12 +114,12 @@ export function TopBar() {
       )}
 
       {/* Right side: sync status + theme toggle */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 ml-auto">
         {/* Last synced + refresh — only on month-snapshot pages */}
         {showMonthControls && (
           <div className="flex items-center gap-2">
             {lastFetched && !isLoading && (
-              <span className="text-[11px] text-[#555] whitespace-nowrap">
+              <span className="hidden sm:inline text-[11px] text-[#555] whitespace-nowrap">
                 Synced {formatLastSynced(lastFetched)}
               </span>
             )}

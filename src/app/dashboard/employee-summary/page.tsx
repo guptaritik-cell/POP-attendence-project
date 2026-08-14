@@ -255,7 +255,7 @@ export default function EmployeeSummaryPage() {
     <div className="flex flex-col min-h-full pb-12">
       {/* ── Header / controls ── */}
       <div
-        className="sticky top-0 z-20 px-6 py-4"
+        className="sticky top-0 z-20 px-4 sm:px-6 py-4"
         style={{ background: "#0D0D0D", borderBottom: "1px solid rgba(255,77,0,0.12)" }}
       >
         <div className="flex items-center gap-2 mb-4">
@@ -267,7 +267,7 @@ export default function EmployeeSummaryPage() {
           {/* Employee search */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-medium text-[#888888]">Employee</label>
-            <div className="relative w-64">
+            <div className="relative w-full sm:w-64">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
               <Input
                 value={query}
@@ -356,7 +356,7 @@ export default function EmployeeSummaryPage() {
       </div>
 
       {/* ── Body ── */}
-      <div className="px-6 pt-6">
+      <div className="px-4 sm:px-6 pt-6">
         {error && (
           <div
             className="flex items-center gap-2 px-4 py-3 rounded-xl mb-5"
@@ -397,7 +397,7 @@ export default function EmployeeSummaryPage() {
 
             {/* Header card */}
             <div
-              className="rounded-xl p-6 flex items-center gap-6"
+              className="rounded-xl p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center sm:text-left"
               style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.2)" }}
             >
               <div
@@ -406,10 +406,10 @@ export default function EmployeeSummaryPage() {
               >
                 {initials(result.employee.name)}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 w-full sm:w-auto">
                 <h2 className="text-xl font-semibold text-[#F5F5F5]">{result.employee.name}</h2>
                 <p className="text-sm text-[#888888] mt-0.5">{result.employee.employeeId}</p>
-                <div className="flex items-center gap-4 mt-3 flex-wrap">
+                <div className="flex items-center justify-center sm:justify-start gap-4 mt-3 flex-wrap">
                   <span className="text-xs px-3 py-1 rounded-full" style={{ background: `${teamColor}22`, color: teamColor }}>
                     {result.employee.team}
                   </span>
@@ -422,7 +422,7 @@ export default function EmployeeSummaryPage() {
             </div>
 
             {/* Stat pills */}
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
               <StatPill icon={<CheckCircle2 size={18} />} label="Present" value={result.summary.present} color="#4ade80" />
               <StatPill icon={<TrendingUp size={18} />}   label="WFH"     value={`${result.summary.wfh} · ${result.summary.wfhPercent}%`} color="#FF7A35" />
               <StatPill icon={<Clock size={18} />}        label="Half Days" value={result.summary.halfDay} color="#fbbf24" />

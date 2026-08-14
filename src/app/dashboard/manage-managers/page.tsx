@@ -91,7 +91,7 @@ export default function ManageManagersPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
+    <div className="p-4 sm:p-6 space-y-6 max-w-4xl">
       <div>
         <h1 className="text-xl font-semibold text-[#F5F5F5] flex items-center gap-2">
           <UserCog size={20} /> Manage Managers
@@ -107,7 +107,7 @@ export default function ManageManagersPage() {
         className="rounded-xl p-5 space-y-4"
         style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.15)" }}
       >
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label>Name</Label>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="Manager's full name" className={inputClass} />
@@ -188,13 +188,13 @@ export default function ManageManagersPage() {
                 className="flex items-center justify-between px-4 py-3 rounded-lg"
                 style={{ background: "#222222" }}
               >
-                <div>
-                  <p className="text-sm font-medium text-[#F5F5F5]">{m.name}</p>
-                  <p className="text-[11px] text-[#888888]">{m.email} · {m.team}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-[#F5F5F5] truncate">{m.name}</p>
+                  <p className="text-[11px] text-[#888888] truncate">{m.email} · {m.team}</p>
                 </div>
                 <button
                   onClick={() => handleDelete(m.email)}
-                  className="text-[#888888] hover:text-[#f87171] transition-colors"
+                  className="flex-shrink-0 ml-3 text-[#888888] hover:text-[#f87171] transition-colors"
                   title="Remove"
                 >
                   <Trash2 size={16} />

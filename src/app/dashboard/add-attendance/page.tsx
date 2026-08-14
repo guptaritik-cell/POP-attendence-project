@@ -143,7 +143,7 @@ function ConfirmDialog({
             className="w-full max-w-[400px] rounded-2xl overflow-hidden"
             style={{ background: "#181818", border: `1px solid ${accentBorder}`, boxShadow: "0 20px 60px rgba(0,0,0,0.6)" }}
           >
-            <div className="px-6 pt-6 pb-4 flex items-start gap-3">
+            <div className="px-4 sm:px-6 pt-6 pb-4 flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
                 <Icon size={18} style={{ color: iconColor }} />
               </div>
@@ -152,7 +152,7 @@ function ConfirmDialog({
                 <div className="text-[13px] text-[#aaaaaa] mt-1.5 leading-relaxed">{message}</div>
               </div>
             </div>
-            <div className="flex gap-2 px-6 pb-6">
+            <div className="flex gap-2 px-4 sm:px-6 pb-6">
               <Button
                 onClick={onCancel}
                 disabled={busy}
@@ -326,7 +326,7 @@ function AttendanceUploadPanel({ mode }: { mode: "all" }) {
   const fileExt = file ? (file.name.split(".").pop() ?? "").toLowerCase() : "";
 
   return (
-    <div className="px-8 py-6 space-y-5">
+    <div className="px-4 sm:px-8 py-6 space-y-5">
       <AnimatePresence>
         {alert && (
           <motion.div key="a" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
@@ -340,7 +340,7 @@ function AttendanceUploadPanel({ mode }: { mode: "all" }) {
           Target Month <span className="text-[#FF4D00]">*</span>
         </label>
         <p className="text-[11px] text-[#666666] mb-2">Select the month this data belongs to.</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <DarkSelect value={month} onChange={v => { setMonth(v); setAlert(null); }} options={MONTH_LABELS.map((l, i) => ({ label: l, value: String(i) }))} />
           <DarkSelect value={year}  onChange={v => { setYear(v);  setAlert(null); }} options={YEAR_OPTIONS.map(y => ({ label: String(y), value: String(y) }))} />
         </div>
@@ -459,7 +459,7 @@ function LeaveExcelPanel() {
   }
 
   return (
-    <div className="px-8 py-6 space-y-5">
+    <div className="px-4 sm:px-8 py-6 space-y-5">
       <AnimatePresence>
         {alert && (
           <motion.div key="a" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
@@ -605,7 +605,7 @@ function WFHExcelPanel() {
   }
 
   return (
-    <div className="px-8 py-6 space-y-5">
+    <div className="px-4 sm:px-8 py-6 space-y-5">
       <AnimatePresence>
         {alert && (
           <motion.div key="a" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
@@ -757,7 +757,7 @@ function RemoveAttendancePanel() {
     "focus:border-[#FF4D00] focus:outline-none focus:ring-1 focus:ring-[#FF4D00] [color-scheme:dark] w-full";
 
   return (
-    <div className="px-8 py-6 space-y-5">
+    <div className="px-4 sm:px-8 py-6 space-y-5">
       <AnimatePresence>
         {alert && (
           <motion.div key="a" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
@@ -815,7 +815,7 @@ function RemoveAttendancePanel() {
       </div>
 
       {/* Date range */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-[#888888] mb-1.5">From date <span className="text-[#FF4D00]">*</span></label>
           <input type="date" value={fromDate} max={toDate || undefined} onChange={e => { setFromDate(e.target.value); setAlert(null); }} className={dateInputClass} />
@@ -901,7 +901,7 @@ export default function AddAttendancePage() {
   const [activeTab, setActiveTab] = useState<UploadMode>("all");
 
   return (
-    <div className="min-h-full px-6 py-8 flex flex-col items-center">
+    <div className="min-h-full px-3 sm:px-6 py-8 flex flex-col items-center">
       <div
         className="w-full max-w-[600px] rounded-2xl overflow-hidden"
         style={{
@@ -911,7 +911,7 @@ export default function AddAttendancePage() {
         }}
       >
         {/* Header */}
-        <div className="px-8 pt-6 pb-0">
+        <div className="px-4 sm:px-8 pt-6 pb-0">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,77,0,0.15)" }}>
               <UploadCloud size={18} className="text-[#FF7A35]" />
@@ -952,7 +952,7 @@ export default function AddAttendancePage() {
         </div>
 
         {/* Tab description */}
-        <div className="px-8 py-3" style={{ borderBottom: "1px solid rgba(255,77,0,0.08)", background: "rgba(255,77,0,0.02)" }}>
+        <div className="px-4 sm:px-8 py-3" style={{ borderBottom: "1px solid rgba(255,77,0,0.08)", background: "rgba(255,77,0,0.02)" }}>
           <p className="text-[12px] text-[#888888]">{TABS.find(t => t.mode === activeTab)?.description}</p>
         </div>
 

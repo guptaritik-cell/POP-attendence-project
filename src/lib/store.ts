@@ -13,6 +13,7 @@ interface AttendanceStore {
   searchQuery: string;
   refreshKey: number;             // increment to force a re-fetch
   lastFetched: number | null;     // epoch ms of last successful fetch
+  mobileNavOpen: boolean;         // sidebar drawer state on small screens
 
   // ── Actions ────────────────────────────────────────────────────────────────
   setMonth: (month: number) => void;
@@ -25,6 +26,7 @@ interface AttendanceStore {
   setSearchQuery: (query: string) => void;
   triggerRefresh: () => void;
   setLastFetched: (ts: number) => void;
+  setMobileNavOpen: (open: boolean) => void;
 }
 
 export const useAttendanceStore = create<AttendanceStore>((set) => ({
@@ -38,6 +40,7 @@ export const useAttendanceStore = create<AttendanceStore>((set) => ({
   searchQuery:   "",
   refreshKey:    0,
   lastFetched:   null,
+  mobileNavOpen: false,
 
   setMonth:        (month)   => set({ selectedMonth: month,   monthData: null }),
   setYear:         (year)    => set({ selectedYear:  year,    monthData: null }),
@@ -49,4 +52,5 @@ export const useAttendanceStore = create<AttendanceStore>((set) => ({
   setSearchQuery:  (query)   => set({ searchQuery: query }),
   triggerRefresh:  ()        => set(s => ({ refreshKey: s.refreshKey + 1, monthData: null })),
   setLastFetched:  (ts)      => set({ lastFetched: ts }),
+  setMobileNavOpen: (open)   => set({ mobileNavOpen: open }),
 }));

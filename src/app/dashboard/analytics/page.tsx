@@ -457,14 +457,14 @@ export default function AnalyticsPage() {
         hideTeamFilter
       />
 
-      <div className="px-6 pt-6 pb-4 space-y-6">
+      <div className="px-4 sm:px-6 pt-6 pb-4 space-y-6">
 
         {/* ── Section 1: Key Metrics ── */}
         <motion.div
           variants={stagger}
           initial="hidden"
           animate="visible"
-          className="grid grid-cols-3 gap-4"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
         >
           {isLoading
             ? Array.from({ length: 6 }).map((_, i) => (
@@ -477,7 +477,7 @@ export default function AnalyticsPage() {
         </motion.div>
 
         {/* ── Section 2: Leaderboard ── */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <LeaderboardCard
             title="Top Performers"
             icon={<Trophy size={16} className="text-white" />}
@@ -514,7 +514,7 @@ export default function AnalyticsPage() {
         />
 
         {/* ── Section 5: Leave & Absence analysis ── */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <HorizBarCard
             title="Most Absences"
             subtitle="Top 5 by absent day count"
@@ -546,13 +546,13 @@ export default function AnalyticsPage() {
         <div>
           <p className="text-base font-medium text-[#F5F5F5] mb-4">Monthly Insights</p>
           {isLoading ? (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {Array.from({ length: 3 }).map((_, i) => (
                 <Skeleton key={i} className="h-24 rounded-xl bg-[#222222]" />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {insights.map((ins, i) => (
                 <InsightCard key={ins.title} {...ins} index={i} />
               ))}

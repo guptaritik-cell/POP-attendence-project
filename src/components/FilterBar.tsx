@@ -115,7 +115,7 @@ export function FilterBar({
 
   return (
     <div
-      className={`${isSticky ? "sticky top-0 z-20" : ""} flex items-center gap-3 px-6 py-3 flex-wrap`}
+      className={`${isSticky ? "sticky top-0 z-20" : ""} flex items-center gap-3 px-4 sm:px-6 py-3 flex-wrap`}
       style={{ background: "#181818", borderBottom: "1px solid rgba(255,77,0,0.12)" }}
     >
       {/* Monthly / Weekly toggle */}

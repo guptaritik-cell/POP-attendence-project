@@ -375,7 +375,7 @@ export default function AddMemberPage() {
   const inputClass = "h-9 text-sm bg-[#1E1E1E] border-[rgba(255,77,0,0.25)] text-[#F5F5F5] placeholder:text-[#555] focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00]";
 
   return (
-    <div className="min-h-full px-6 py-8 flex flex-col items-center">
+    <div className="min-h-full px-3 sm:px-6 py-8 flex flex-col items-center">
 
       {/* ── Form card ── */}
       <div
@@ -388,7 +388,7 @@ export default function AddMemberPage() {
       >
         {/* Header */}
         <div
-          className="px-8 py-6"
+          className="px-5 sm:px-8 py-6"
           style={{ borderBottom: "1px solid rgba(255,77,0,0.15)" }}
         >
           <div className="flex items-center gap-3">
@@ -408,7 +408,7 @@ export default function AddMemberPage() {
         </div>
 
         {/* Form body */}
-        <div className="px-8 py-6 space-y-5">
+        <div className="px-5 sm:px-8 py-6 space-y-5">
 
           {/* Alert */}
           <AnimatePresence>
@@ -507,7 +507,7 @@ export default function AddMemberPage() {
             <p className="text-[11px] text-[#666666] mb-2">
               The joining day will be marked as Present (P). Use “Add Until” below to set the last month.
             </p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Day */}
               <DarkSelect
                 value={joinDate}
@@ -538,7 +538,7 @@ export default function AddMemberPage() {
             <p className="text-[11px] text-[#666666] mb-2">
               The last month to add this member to. Sheets from the joining month up to and including this month will contain the employee.
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Month */}
               <DarkSelect
                 value={tillMonth}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -8,11 +8,12 @@ import { signOut, useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, UsersRound, BarChart3, UserCircle, UserPlus, FilePlus2,
-  ClipboardList, ChevronLeft, ChevronRight, LogOut, BookOpen, UserCog,
+  ClipboardList, ChevronLeft, ChevronRight, LogOut, BookOpen, UserCog, X,
 } from "lucide-react";
 import {
   Tooltip, TooltipContent, TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAttendanceStore } from "@/lib/store";
 
 // ── Brand colours (dashboard uses original purple spec) ───────────────────
 const PURPLE      = "#FF4D00";
@@ -50,14 +51,32 @@ export function Sidebar() {
   const userName = session?.user?.name ?? "Admin";
   const role = session?.user?.role ?? "admin";
   const visibleNavItems = NAV_ITEMS.filter(item => item.roles.includes(role));
+  const mobileNavOpen = useAttendanceStore(s => s.mobileNavOpen);
+  const setMobileNavOpen = useAttendanceStore(s => s.setMobileNavOpen);
+
+  // Close the mobile drawer whenever the route changes.
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname, setMobileNavOpen]);
 
   return (
-    <motion.aside
-      animate={{ width: collapsed ? 64 : 240 }}
-      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-      className="flex-shrink-0 flex flex-col h-screen overflow-hidden"
-      style={{ background: SURFACE, borderRight: `1px solid ${BORDER_CLR}` }}
-    >
+    <>
+      {/* Backdrop — mobile drawer only */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
+      <motion.aside
+        animate={{ width: collapsed ? 64 : 240 }}
+        transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+        className={`fixed md:relative inset-y-0 left-0 z-50 flex-shrink-0 flex flex-col h-screen overflow-hidden transition-transform duration-300 md:translate-x-0 ${
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        style={{ background: SURFACE, borderRight: `1px solid ${BORDER_CLR}` }}
+      >
       {/* ── Top: logo + collapse toggle ── */}
       <div
         className="flex items-center h-16 px-3 flex-shrink-0"
@@ -88,15 +107,24 @@ export function Sidebar() {
           </AnimatePresence>
         </Link>
 
-        {/* Collapse toggle */}
+        {/* Collapse toggle — desktop only */}
         <button
           onClick={() => setCollapsed(c => !c)}
-          className="ml-auto flex-shrink-0 w-6 h-6 rounded flex items-center justify-center transition-colors"
+          className="ml-auto hidden md:flex flex-shrink-0 w-6 h-6 rounded items-center justify-center transition-colors"
           style={{ color: "#888888" }}
           onMouseEnter={e => (e.currentTarget.style.color = "#F5F5F5")}
           onMouseLeave={e => (e.currentTarget.style.color = "#888888")}
         >
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+
+        {/* Close drawer — mobile only */}
+        <button
+          onClick={() => setMobileNavOpen(false)}
+          className="ml-auto flex md:hidden flex-shrink-0 w-6 h-6 rounded items-center justify-center transition-colors"
+          style={{ color: "#888888" }}
+        >
+          <X size={16} />
         </button>
       </div>
 
@@ -229,6 +257,7 @@ export function Sidebar() {
           </button>
         )}
       </div>
-    </motion.aside>
+      </motion.aside>
+    </>
   );
 }

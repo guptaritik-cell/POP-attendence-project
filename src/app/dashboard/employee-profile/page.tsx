@@ -335,7 +335,7 @@ export default function EmployeeProfilePage() {
 
       {/* ── Search bar ── */}
       <div
-        className="sticky top-0 z-20 px-6 py-4"
+        className="sticky top-0 z-20 px-4 sm:px-6 py-4"
         style={{ background: "#0D0D0D", borderBottom: "1px solid rgba(255,77,0,0.12)" }}
       >
         <div className="relative max-w-md">
@@ -385,11 +385,11 @@ export default function EmployeeProfilePage() {
       </div>
 
       {/* ── Profile content ── */}
-      <div className="px-6 pt-6">
+      <div className="px-4 sm:px-6 pt-6">
         {isLoading ? (
           <div className="space-y-4">
             <Skeleton className="h-28 rounded-xl bg-[#222222]" />
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 rounded-xl bg-[#222222]" />)}
             </div>
           </div>
@@ -407,7 +407,7 @@ export default function EmployeeProfilePage() {
             >
               {/* ── Profile header card ── */}
               <div
-                className="rounded-xl p-6 flex items-center gap-6"
+                className="rounded-xl p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center sm:text-left"
                 style={{ background: "#181818", border: "1px solid rgba(255,77,0,0.2)" }}
               >
                 {/* Large avatar */}
@@ -418,11 +418,11 @@ export default function EmployeeProfilePage() {
                   {initials(selectedRecord.name)}
                 </div>
 
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 w-full sm:w-auto">
                   <h2 className="text-xl font-semibold text-[#F5F5F5]">{selectedRecord.name}</h2>
                   <p className="text-sm text-[#888888] mt-0.5">{selectedRecord.employeeId}</p>
 
-                  <div className="flex items-center gap-4 mt-3 flex-wrap">
+                  <div className="flex items-center justify-center sm:justify-start gap-4 mt-3 flex-wrap">
                     <span
                       className="flex items-center gap-1.5 text-xs px-3 py-1 rounded-full"
                       style={{ background: `${teamColor}22`, color: teamColor }}
@@ -437,7 +437,7 @@ export default function EmployeeProfilePage() {
                 </div>
 
                 {/* Quick badge */}
-                <div className="text-right flex-shrink-0">
+                <div className="text-center sm:text-right flex-shrink-0">
                   <p
                     className="text-3xl font-bold"
                     style={{ color: attColor(selectedRecord.attendancePercent) }}
@@ -449,7 +449,7 @@ export default function EmployeeProfilePage() {
               </div>
 
               {/* ── Stat pills row ── */}
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <StatPill
                   icon={<CheckCircle2 size={16} />}
                   label="Present Days"
@@ -477,7 +477,7 @@ export default function EmployeeProfilePage() {
               </div>
 
               {/* ── Progress rings + weekly bar ── */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Rings */}
                 <div
                   className="rounded-xl p-5"
@@ -557,7 +557,7 @@ export default function EmployeeProfilePage() {
               </div>
 
               {/* ── Calendar grid + log ── */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Calendar */}
                 <div
                   className="rounded-xl p-5"
