@@ -134,7 +134,7 @@ export default function LandingPage() {
                   "0 4px 28px rgba(255,77,0,0.45), inset 0 1px 1px rgba(255,255,255,0.15)";
               }}
             >
-              Get Started →
+              Get Started
             </Button>
           </motion.div>
         </motion.div>

@@ -116,7 +116,7 @@ export default function LoginPage() {
   function handleGoogleSignIn() {
     setGoogleError("");
     setGoogleLoading(true);
-    signIn("google", { callbackUrl: "/dashboard/all-employees" });
+    signIn("google", { callbackUrl: "/home" });
   }
 
   function handleEmailBlur() {
@@ -140,7 +140,7 @@ export default function LoginPage() {
     try {
       const result = await signIn("credentials", { email, password, redirect: false });
       if (result?.ok) {
-        router.push("/dashboard");
+        router.push("/home");
       } else {
         toast.error("Invalid credentials. Please try again.");
       }
