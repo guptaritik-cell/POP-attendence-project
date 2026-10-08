@@ -67,7 +67,6 @@ export function FilterBar({
       "Working Days",
       "Present",
       "Att %",
-      "Absent",
       "WFH Days",
       "WFH %",
       "Half Days",
@@ -76,13 +75,14 @@ export function FilterBar({
       "Menstrual Leave (ML)",
       "Sick Leave (SL)",
       "Paid Leave (PL)",
-      "Other Leaves",
       "Total Hours",
       "Hours %",
     ];
     const rows = filteredRecords.map(r => {
-      const otherLeaveDays = Object.values(r.otherLeaves || {}).reduce((s, n) => s + (n || 0), 0);
-      const totalLeave = (r.totalAbsent || 0) + (r.totalML || 0) + (r.totalSL || 0) + (r.totalPL || 0) + otherLeaveDays;
+      const casualLeave = Math.max(
+        0,
+        (r.totalAbsent || 0) - ((r.totalML || 0) + (r.totalSL || 0) + (r.totalPL || 0))
+      );
       return [
         r.employeeId,
         r.name,
@@ -91,16 +91,14 @@ export function FilterBar({
         r.workingDays,
         r.totalPresent.toFixed(1),
         r.attendancePercent.toFixed(1),
-        r.totalAbsent || 0,
         r.totalWFH,
         r.wfhPercent.toFixed(1),
         r.totalHalfDay || 0,
-        totalLeave,
         r.totalAbsent || 0,
+        casualLeave,
         r.totalML || 0,
         r.totalSL || 0,
         r.totalPL || 0,
-        otherLeaveDays,
         r.totalHours,
         r.hoursPercent.toFixed(1),
       ];
@@ -117,7 +115,7 @@ export function FilterBar({
 
   return (
     <div
-      className={`${isSticky ? "sticky top-0 z-20" : ""} flex items-center gap-3 px-4 sm:px-6 py-3 flex-wrap`}
+      className={`${isSticky ? "sticky top-0 z-20" : ""} flex items-center gap-3 px-6 py-3 flex-wrap`}
       style={{ background: "#181818", borderBottom: "1px solid rgba(255,77,0,0.12)" }}
     >
       {/* Monthly / Weekly toggle */}
@@ -152,7 +150,7 @@ export function FilterBar({
               <SelectItem
                 key={wr.weekNumber}
                 value={String(wr.weekNumber)}
-                className="text-xs text-[#F5F5F5] focus:bg-[rgba(255,77,0,0.15)] focus:text-[#F5F5F5] data-[highlighted]:bg-[rgba(255,77,0,0.15)] data-[highlighted]:text-[#F5F5F5]"
+                className="text-xs text-[#F5F5F5] focus:bg-[rgba(255,77,0,0.15)]"
               >
                 {wr.label}
               </SelectItem>
