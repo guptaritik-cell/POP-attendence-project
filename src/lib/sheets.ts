@@ -8,6 +8,11 @@ import type {
   WeekRange,
   Employee,
 } from "@/types/attendance";
+import {
+  OTHER_LEAVE_CODES,
+  emptyOtherLeaves,
+  SYMBOL_META,
+} from "@/lib/attendanceSymbols";
 
 // Full names used for display in the UI
 const MONTH_DISPLAY_NAMES = [
@@ -70,9 +75,7 @@ function parseSymbol(raw: string): AttendanceSymbol {
   if (s === "WFH") return "WFH";
   if (s === "NHD" || s === "HO") return "NHD";
   if (s === "WO" || s === "WOP" || s === "MO") return "WO";   // WOP/MO = Week Off
-  if (s === "ML") return "ML";   // Menstrual Leave
-  if (s === "SL") return "SL";   // Sick Leave
-  if (s === "PL") return "PL";   // Paid Leave
+  if (s in SYMBOL_META) return s as AttendanceSymbol;
   return "";
 }
 
@@ -98,7 +101,8 @@ function computeRecord(
 ): EmployeeMonthRecord {
   let totalPresent = 0, totalWFH = 0, totalAbsent = 0, totalHalfDay = 0;
   let totalML = 0, totalSL = 0, totalPL = 0;
-  let daysWithData = 0; // A/ML/SL/PL + P + WFH + HD
+  const otherLeaves = emptyOtherLeaves();
+  let daysWithData = 0; // A/ML/SL/PL/otherLeaves + P + WFH + HD
   let totalMinutes = 0;
 
   for (const day of days) {
@@ -113,6 +117,10 @@ function computeRecord(
     else if (s === "ML")  { totalAbsent += 1; totalML += 1; }
     else if (s === "SL")  { totalAbsent += 1; totalSL += 1; }
     else if (s === "PL")  { totalAbsent += 1; totalPL += 1; }
+    else if (OTHER_LEAVE_CODES.includes(s)) {
+      totalAbsent += 1;
+      otherLeaves[s] = (otherLeaves[s] || 0) + 1;
+    }
     totalMinutes += day.hoursMinutes ?? 0;
   }
 
@@ -131,7 +139,7 @@ function computeRecord(
   return {
     employeeId, name, team, buLead, days,
     totalPresent, totalWFH, totalAbsent, totalHalfDay,
-    totalML, totalSL, totalPL,
+    totalML, totalSL, totalPL, otherLeaves,
     workingDays, attendancePercent, wfhPercent, totalHours, hoursPercent,
   };
 }
