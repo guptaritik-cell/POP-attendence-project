@@ -71,7 +71,7 @@ export function FilterBar({
       "WFH %",
       "Half Days",
       "Total Leave",
-      "Casual Leave (A)",
+      "Absents (A)",
       "Menstrual Leave (ML)",
       "Sick Leave (SL)",
       "Paid Leave (PL)",
