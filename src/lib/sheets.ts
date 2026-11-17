@@ -75,6 +75,7 @@ function parseSymbol(raw: string): AttendanceSymbol {
   if (s === "WFH") return "WFH";
   if (s === "NHD" || s === "HO") return "NHD";
   if (s === "WO" || s === "WOP" || s === "MO") return "WO";   // WOP/MO = Week Off
+  if (s === "INACTIVE" || s === "IN") return "IN";            // employee has exited
   if (s in SYMBOL_META) return s as AttendanceSymbol;
   return "";
 }
@@ -107,7 +108,7 @@ function computeRecord(
 
   for (const day of days) {
     const s = day.symbol;
-    if (s === "NHD" || s === "WO" || s === "") continue;
+    if (s === "NHD" || s === "WO" || s === "IN" || s === "") continue;
     daysWithData++;
     if      (s === "P")   { totalPresent += 1; }
     else if (s === "WFH") { totalPresent += 1; totalWFH += 1; }
@@ -194,7 +195,7 @@ export function detectFormat(rows: string[][]): {
   if (!hasSubRows) {
     for (let r = 1; r < Math.min(rows.length, 100); r++) {
       const row = rows[r];
-      if (!(row[0] ?? "").trim()) {
+      if (!cell(row, detectIdentityCols(headerRow, dayColStart).id)) {
         for (let c = 0; c < dayColStart; c++) {
           const label = (row[c] ?? "").trim().toLowerCase();
           if (
@@ -217,6 +218,50 @@ export function detectFormat(rows: string[][]): {
   return { dayColStart, hasSubRows, typeCol };
 }
 
+// ── Identity column detector ────────────────────────────────────────────────
+// Locates the employee-info columns (ID, Name, Team, BU Lead, Designation,
+// Entity Status) by header name, so columns can be added / reordered in the
+// sheet without breaking parsing. Falls back to the legacy fixed layout
+// (A = ID, B = Name, C = Team, D = BU Lead) when headers are not recognised.
+export interface IdentityCols {
+  id: number;
+  name: number;
+  team: number;
+  buLead: number;
+  designation: number; // -1 if absent
+  entity: number;      // -1 if absent
+}
+
+export function detectIdentityCols(headerRow: string[], dayColStart: number): IdentityCols {
+  const hdr = (headerRow ?? []).slice(0, dayColStart).map(h => (h ?? "").trim().toLowerCase());
+  const find = (...candidates: string[]) =>
+    hdr.findIndex(h => !!h && candidates.some(c => h === c || h.includes(c)));
+
+  const id = find("employee id", "emp id", "employee number", "employee code");
+  if (id === -1) {
+    // Legacy layout
+    return {
+      id: 0,
+      name: 1,
+      team: dayColStart > 2 ? 2 : -1,
+      buLead: dayColStart > 3 ? 3 : -1,
+      designation: -1,
+      entity: -1,
+    };
+  }
+  return {
+    id,
+    name:        find("first name", "employee name", "full name", "name"),
+    team:        find("team / bu", "team/bu", "team"),
+    buLead:      find("bu lead", "lead"),
+    designation: find("designation"),
+    entity:      find("employee entity status", "entity status", "employment type", "fte/intern"),
+  };
+}
+
+const cell = (row: string[] | undefined, idx: number) =>
+  idx < 0 || !row ? "" : (row[idx] ?? "").trim();
+
 // ── Parse raw rows into MonthData ────────────────────────────────────────────
 export function parseMonthData(
   rows: string[][],
@@ -230,6 +275,7 @@ export function parseMonthData(
 
   const headerRow = rows[0];
   const { dayColStart, hasSubRows: isNewFormat, typeCol } = detectFormat(rows);
+  const ic = detectIdentityCols(headerRow, dayColStart);
 
   // ── Identify day column indices + headers ─────────────────────────────────
   const dayColIndices: number[] = [];
@@ -250,6 +296,7 @@ export function parseMonthData(
   // ── Phase 1: build days arrays for every employee ─────────────────────────
   type EmpGroup = {
     employeeId: string; name: string; team: string; buLead: string;
+    designation: string; employmentType: string;
     days: DayRecord[];
   };
   const groups: EmpGroup[] = [];
@@ -258,12 +305,14 @@ export function parseMonthData(
     let i = 1;
     while (i < rows.length) {
       const row        = rows[i];
-      const employeeId = (row[0] ?? "").trim();
+      const employeeId = cell(row, ic.id);
       if (!employeeId) { i++; continue; }
 
-      const name   = (row[1] ?? "").trim();
-      const team   = typeCol >= 2 ? (row[2] ?? "").trim() : "";
-      const buLead = typeCol >= 4 ? (row[3] ?? "").trim() : "";
+      const name   = cell(row, ic.name);
+      const team   = ic.team   < typeCol ? cell(row, ic.team)   : "";
+      const buLead = ic.buLead < typeCol ? cell(row, ic.buLead) : "";
+      const designation    = cell(row, ic.designation);
+      const employmentType = cell(row, ic.entity);
       const statusRow = dayColIndices.map(ci => (row[ci] ?? "").trim());
 
       let clockInRow:  string[] = [];
@@ -271,7 +320,7 @@ export function parseMonthData(
       let hoursRow:    string[] = [];
 
       i++;
-      while (i < rows.length && !(rows[i][0] ?? "").trim()) {
+      while (i < rows.length && !cell(rows[i], ic.id)) {
         const sub     = rows[i];
         const subType = (sub[typeCol] ?? "").trim().toLowerCase();
         if (subType === "clock in" || subType === "clock-in") {
@@ -298,17 +347,19 @@ export function parseMonthData(
         };
       });
 
-      groups.push({ employeeId, name, team, buLead, days });
+      groups.push({ employeeId, name, team, buLead, designation, employmentType, days });
     }
   } else {
     for (let r = 1; r < rows.length; r++) {
       const row        = rows[r];
-      const employeeId = (row[0] ?? "").trim();
+      const employeeId = cell(row, ic.id);
       if (!employeeId) continue;
 
-      const name   = (row[1] ?? "").trim();
-      const team   = (row[2] ?? "").trim();
-      const buLead = (row[3] ?? "").trim();
+      const name   = cell(row, ic.name);
+      const team   = cell(row, ic.team);
+      const buLead = cell(row, ic.buLead);
+      const designation    = cell(row, ic.designation);
+      const employmentType = cell(row, ic.entity);
 
       const days: DayRecord[] = dayColIndices.map((colIdx, i) => {
         const raw    = row[colIdx] ?? "";
@@ -320,7 +371,7 @@ export function parseMonthData(
         };
       });
 
-      groups.push({ employeeId, name, team, buLead, days });
+      groups.push({ employeeId, name, team, buLead, designation, employmentType, days });
     }
   }
 
@@ -364,9 +415,21 @@ export function parseMonthData(
   const companyWorkingDays = dayColIndices.length - woColSet.size - nhdColSet.size;
 
   // ── Phase 3: build final records with the correct working-days denominator ─
-  const records: EmployeeMonthRecord[] = groups.map(g =>
-    computeRecord(g.employeeId, g.name, g.team, g.buLead, g.days, companyWorkingDays)
-  );
+  // Inactive (exited) days on company working days are removed from that
+  // employee's denominator so leaving mid-month doesn't tank their %.
+  const records: EmployeeMonthRecord[] = groups.map(g => {
+    let inactiveWorkingDays = 0;
+    g.days.forEach((day, colIdx) => {
+      if (day.symbol === "IN" && !woColSet.has(colIdx) && !nhdColSet.has(colIdx)) inactiveWorkingDays++;
+    });
+    const rec = computeRecord(
+      g.employeeId, g.name, g.team, g.buLead, g.days,
+      Math.max(0, companyWorkingDays - inactiveWorkingDays),
+    );
+    if (g.designation)    rec.designation    = g.designation;
+    if (g.employmentType) rec.employmentType = g.employmentType;
+    return rec;
+  });
 
   return { month, monthIndex, year, records, columnHeaders };
 }
@@ -403,6 +466,13 @@ export async function getSheetTabs(): Promise<string[]> {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// Team names are compared case/whitespace-insensitively so "Design", "design "
+// and "DESIGN" in the sheet / managers DB all match.
+export function sameTeam(a: string | undefined | null, b: string | undefined | null): boolean {
+  const norm = (v: string | undefined | null) => (v ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+  return !!norm(a) && norm(a) === norm(b);
+}
+
 export function getAllTeams(monthData: MonthData): string[] {
   const teams = new Set<string>();
   for (const r of monthData.records) if (r.team) teams.add(r.team);
@@ -480,37 +550,37 @@ export async function addEmployee(
     (_, monthIdx) => monthIdx >= joinMonth && monthIdx <= upperBound,
   );
 
-  // ── 3. Detect sheet format from the first eligible existing tab ──────────
-  let isNewFormat = false;
-  for (const tabName of tabsToWrite) {
-    if (!existingTabs.has(tabName)) continue;
-    try {
-      const hdr = await sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: `${tabName}!1:100`,
-      });
-      const curRows = (hdr.data.values ?? []) as string[][];
-      if (curRows.length > 0) {
-        const fmt = detectFormat(curRows);
-        isNewFormat = fmt.hasSubRows;
-        break;
-      }
-    } catch { /* fallback */ }
-  }
-
-  // ── 4. Build row(s) to append ────────────────────────────────────────────
-  const rowsToAppend = isNewFormat
-    ? [
-        [employee.employeeId, employee.name, employee.team, employee.buLead, "Status"],
-        ["", "", "", "", "Clock In"],
-        ["", "", "", "", "Clock Out"],
-        ["", "", "", "", "Total WK"],
-      ]
-    : [
-        [employee.employeeId, employee.name, employee.team, employee.buLead],
-      ];
-
-  const dayColStart = isNewFormat ? 5 : 4;
+  // ── 3/4. Row layout is built per tab (see buildBlock below) because tabs can
+  // have different column layouts (e.g. older months: ID/Name/Team/BU Lead;
+  // newer months: Entity Status/Designation/ID/Name/Team/BU Lead).
+  const buildBlock = (headerRows: string[][]): { rows: string[][]; dayColStart: number } => {
+    const fmt = headerRows.length
+      ? detectFormat(headerRows)
+      : { dayColStart: 5, hasSubRows: true, typeCol: 4 };
+    const ic  = detectIdentityCols(headerRows[0] ?? [], fmt.dayColStart);
+    const width = fmt.hasSubRows ? fmt.typeCol + 1 : fmt.dayColStart;
+    const info = new Array<string>(width).fill("");
+    const put = (idx: number, v: string | undefined) => {
+      if (idx >= 0 && idx < width && v) info[idx] = v;
+    };
+    put(ic.id,          employee.employeeId);
+    put(ic.name,        employee.name);
+    put(ic.team,        employee.team);
+    put(ic.buLead,      employee.buLead);
+    put(ic.designation, employee.designation);
+    put(ic.entity,      employee.employmentType);
+    if (!fmt.hasSubRows) return { rows: [info], dayColStart: fmt.dayColStart };
+    const sub = (label: string) => {
+      const r = new Array<string>(width).fill("");
+      r[fmt.typeCol] = label;
+      return r;
+    };
+    info[fmt.typeCol] = "Status";
+    return {
+      rows: [info, sub("Clock In"), sub("Clock Out"), sub("Total WK")],
+      dayColStart: fmt.dayColStart,
+    };
+  };
 
   // ── 5. Write each tab: find the true last row, then write the block ──────
   //
@@ -536,8 +606,8 @@ export async function addEmployee(
       const lastRow    = curRows.length;   // 1-based index of last non-empty row
       const writeStart = lastRow + 1;
 
-      // Clone the block so we can inject the joining-day "P" into the Status row.
-      const rows = rowsToAppend.map(r => [...r]);
+      // Build the block for this tab's layout (also used to inject joining-day "P").
+      const { rows, dayColStart } = buildBlock(curRows);
 
       // ── Mark 'P' on the joining date — only for the joining month tab ───
       if (tabName === MONTH_NAMES[joinMonth] && joinDate >= 1) {
@@ -628,6 +698,7 @@ export async function updateAttendanceFromCsv(
   // 3. Detect format, build day-number → column index map
   const sheetHeader = sheetRows[0];
   const { dayColStart, hasSubRows: isNewFmt, typeCol } = detectFormat(sheetRows);
+  const idCol = detectIdentityCols(sheetHeader, dayColStart).id;
 
   // Map: 1-based day number (1–31) → 0-based column index in the sheet row
   const dayNumToColIdx = new Map<number, number>();
@@ -645,14 +716,14 @@ export async function updateAttendanceFromCsv(
   let ri = 1;
   while (ri < sheetRows.length) {
     const row = sheetRows[ri];
-    const id  = (row[0] ?? "").trim().toUpperCase();
+    const id  = cell(row, idCol).toUpperCase();
     if (!id) { ri++; continue; }
 
     const entry: EmpRows = { status: ri + 1, clockIn: -1, clockOut: -1, hours: -1 };
 
     if (isNewFmt) {
       let j = ri + 1;
-      while (j < sheetRows.length && !(sheetRows[j][0] ?? "").trim()) {
+      while (j < sheetRows.length && !cell(sheetRows[j], idCol)) {
         const sub = (sheetRows[j][typeCol] ?? "").trim().toLowerCase();
         if (sub === "clock in" || sub === "clock-in")       entry.clockIn  = j + 1;
         else if (sub === "clock out" || sub === "clock-out") entry.clockOut = j + 1;
@@ -726,127 +797,159 @@ export async function updateAttendanceFromCsv(
   return { employeesUpdated, cellsWritten: data.length, notFound };
 }
 
-// ── Clear an employee's attendance across a date range ────────────────────────
+// ── Mark an employee inactive (exit) ─────────────────────────────────────────
 //
-// Destructive: for the given employee, blanks out the status cell (and, in the
-// new format, the Clock In / Clock Out / Total WK sub-rows) for every day that
-// falls inside [from, to].  Employee info columns (ID / Name / Team / BU Lead)
-// are left untouched.  Iterates every month tab covered by the range.
+// Destructive. Given the employee's exit "from" date:
+//   1. In the from-date's month tab, every day from `from.day` to the end of the
+//      month gets Status = "Inactive" and its Clock In / Clock Out / Total WK
+//      cells cleared.
+//   2. In every LATER month tab (from.month + 1 … Dec) the employee's rows
+//      (Status row + its sub-rows) are deleted from the sheet entirely.
 //
-// `from` / `to` are { year, month (0-idx), day }.
-export async function clearAttendanceRange(
+// Employee info columns in the from-date month are left untouched.
+const SUB_ROW_LABELS = new Set([
+  "clock in", "clock-in", "clock out", "clock-out",
+  "total wk", "total work", "hours", "total hours",
+]);
+
+// Locate every row block (0-based [start, end) row indices) that belongs to
+// `empKey`. In the new format a block is the Status row plus the consecutive
+// sub-rows (empty column A + a known sub-row label) that follow it.
+function findEmployeeBlocks(
+  rows: string[][],
+  empKey: string,
+  isNewFmt: boolean,
+  typeCol: number,
+): { start: number; end: number; clockIn: number; clockOut: number; hours: number }[] {
+  const blocks: { start: number; end: number; clockIn: number; clockOut: number; hours: number }[] = [];
+  const idCol = detectIdentityCols(rows[0] ?? [], typeCol + 1).id;
+  for (let r = 1; r < rows.length; r++) {
+    const id = cell(rows[r], idCol).toUpperCase();
+    if (id !== empKey) continue;
+    const block = { start: r, end: r + 1, clockIn: -1, clockOut: -1, hours: -1 };
+    if (isNewFmt) {
+      let j = r + 1;
+      while (j < rows.length && !cell(rows[j], idCol)) {
+        const sub = (rows[j][typeCol] ?? "").trim().toLowerCase();
+        if (!SUB_ROW_LABELS.has(sub)) break;
+        if (sub === "clock in" || sub === "clock-in")        block.clockIn  = j;
+        else if (sub === "clock out" || sub === "clock-out") block.clockOut = j;
+        else                                                 block.hours    = j;
+        j++;
+      }
+      block.end = j;
+    }
+    blocks.push(block);
+  }
+  return blocks;
+}
+
+export async function markEmployeeInactive(
   employeeId: string,
   from: { year: number; month: number; day: number },
-  to:   { year: number; month: number; day: number },
-): Promise<{ found: boolean; monthsTouched: number; cellsCleared: number; daysCleared: number }> {
+): Promise<{
+  found: boolean;
+  daysMarked: number;
+  monthsDeleted: string[];   // tab names the employee was removed from
+}> {
   const sheetId = process.env.GOOGLE_SHEET_ID;
   if (!sheetId) throw new Error("GOOGLE_SHEET_ID not set");
 
   const sheets = getSheetsClient();
   const empKey = employeeId.trim().toUpperCase();
 
-  const fromAbs = from.year * 12 + from.month;
-  const toAbs   = to.year   * 12 + to.month;
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+  const tabIds = new Map<string, number>();
+  for (const sh of meta.data.sheets ?? []) {
+    const title = sh.properties?.title;
+    const gid   = sh.properties?.sheetId;
+    if (title && gid !== undefined && gid !== null) tabIds.set(title, gid);
+  }
 
-  const data: { range: string; values: string[][] }[] = [];
   let found = false;
-  let monthsTouched = 0;
-  let daysCleared = 0;
 
-  for (let abs = fromAbs; abs <= toAbs; abs++) {
-    const year  = Math.floor(abs / 12);
-    const month = abs % 12;
-    const tabName = MONTH_TAB_NAMES[month];
+  // ── 1. Exit month: write "Inactive" from `from.day` to month end ──────────
+  const exitTab = MONTH_TAB_NAMES[from.month];
+  const valueUpdates: { range: string; values: string[][] }[] = [];
+  let daysMarked = 0;
 
-    // Day window inside this month
-    const dayFrom = abs === fromAbs ? from.day : 1;
-    const dayTo   = abs === toAbs   ? to.day   : daysInMonthLocal(year, month);
+  if (tabIds.has(exitTab)) {
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: exitTab });
+    const rows = (res.data.values ?? []) as string[][];
+    if (rows.length) {
+      const { dayColStart, hasSubRows: isNewFmt, typeCol } = detectFormat(rows);
+      const header = rows[0];
+      const dayCols: { day: number; col: number }[] = [];
+      for (let i = dayColStart; i < header.length; i++) {
+        const h = (header[i] ?? "").trim();
+        if (!h || h.toLowerCase().startsWith("total")) break;
+        const n = parseInt(h.split(/[\s-]/)[0], 10);
+        if (!isNaN(n) && n >= from.day) dayCols.push({ day: n, col: i });
+      }
 
-    let sheetRows: string[][];
-    try {
-      const sheetRes = await sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: tabName,
-      });
-      sheetRows = (sheetRes.data.values ?? []) as string[][];
-    } catch {
-      continue; // tab doesn't exist for this month
-    }
-    if (!sheetRows.length) continue;
+      const blocks = findEmployeeBlocks(rows, empKey, isNewFmt, typeCol);
+      if (blocks.length) found = true;
 
-    // Detect format, build day-number → column index map
-    const sheetHeader = sheetRows[0];
-    const { dayColStart, hasSubRows: isNewFmt, typeCol } = detectFormat(sheetRows);
-
-    const dayNumToColIdx = new Map<number, number>();
-    for (let i = dayColStart; i < sheetHeader.length; i++) {
-      const h = (sheetHeader[i] ?? "").trim();
-      if (!h || h.toLowerCase().startsWith("total")) break;
-      const n = parseInt(h.split(/[\s-]/)[0], 10);
-      if (!isNaN(n)) dayNumToColIdx.set(n, i);
-    }
-
-    // Locate the employee's rows
-    type EmpRows = { status: number; clockIn: number; clockOut: number; hours: number };
-    let empRows: EmpRows | null = null;
-
-    let ri = 1;
-    while (ri < sheetRows.length) {
-      const row = sheetRows[ri];
-      const id  = (row[0] ?? "").trim().toUpperCase();
-      if (!id) { ri++; continue; }
-
-      const entry: EmpRows = { status: ri + 1, clockIn: -1, clockOut: -1, hours: -1 };
-      if (isNewFmt) {
-        let j = ri + 1;
-        while (j < sheetRows.length && !(sheetRows[j][0] ?? "").trim()) {
-          const sub = (sheetRows[j][typeCol] ?? "").trim().toLowerCase();
-          if (sub === "clock in" || sub === "clock-in")       entry.clockIn  = j + 1;
-          else if (sub === "clock out" || sub === "clock-out") entry.clockOut = j + 1;
-          else if (sub === "total wk" || sub === "total work" || sub === "hours")  entry.hours    = j + 1;
-          j++;
+      for (const b of blocks) {
+        for (const { col } of dayCols) {
+          const letter = colIndexToLetter(col);
+          valueUpdates.push({ range: `${exitTab}!${letter}${b.start + 1}`, values: [["Inactive"]] });
+          for (const sub of [b.clockIn, b.clockOut, b.hours]) {
+            if (sub >= 0) valueUpdates.push({ range: `${exitTab}!${letter}${sub + 1}`, values: [[""]] });
+          }
         }
-        if (id === empKey) { empRows = entry; break; }
-        ri = j;
-      } else {
-        if (id === empKey) { empRows = entry; break; }
-        ri++;
       }
-    }
-
-    if (!empRows) continue; // employee not in this month tab
-    found = true;
-    monthsTouched++;
-
-    for (let d = dayFrom; d <= dayTo; d++) {
-      const colIdx = dayNumToColIdx.get(d);
-      if (colIdx === undefined) continue;
-      const col = colIndexToLetter(colIdx);
-
-      data.push({ range: `${tabName}!${col}${empRows.status}`, values: [[""]] });
-      if (isNewFmt) {
-        if (empRows.clockIn  > 0) data.push({ range: `${tabName}!${col}${empRows.clockIn}`,  values: [[""]] });
-        if (empRows.clockOut > 0) data.push({ range: `${tabName}!${col}${empRows.clockOut}`, values: [[""]] });
-        if (empRows.hours    > 0) data.push({ range: `${tabName}!${col}${empRows.hours}`,    values: [[""]] });
-      }
-      daysCleared++;
+      if (blocks.length) daysMarked = dayCols.length;
     }
   }
 
-  if (data.length) {
+  // ── 2. Later months: delete the employee's rows entirely ──────────────────
+  const deleteRequests: { deleteDimension: { range: { sheetId: number; dimension: "ROWS"; startIndex: number; endIndex: number } } }[] = [];
+  const monthsDeleted: string[] = [];
+
+  for (let m = from.month + 1; m < 12; m++) {
+    const tab = MONTH_TAB_NAMES[m];
+    const gid = tabIds.get(tab);
+    if (gid === undefined) continue;
+
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: tab });
+    const rows = (res.data.values ?? []) as string[][];
+    if (!rows.length) continue;
+
+    const { hasSubRows: isNewFmt, typeCol } = detectFormat(rows);
+    const blocks = findEmployeeBlocks(rows, empKey, isNewFmt, typeCol);
+    if (!blocks.length) continue;
+
+    found = true;
+    monthsDeleted.push(tab);
+    // Delete bottom-up so earlier indices stay valid within the same tab
+    for (const b of [...blocks].sort((a, z) => z.start - a.start)) {
+      deleteRequests.push({
+        deleteDimension: {
+          range: { sheetId: gid, dimension: "ROWS", startIndex: b.start, endIndex: b.end },
+        },
+      });
+    }
+  }
+
+  // Write values first (row indices in the exit tab are unaffected by deletes
+  // in other tabs, but keep the order deterministic anyway).
+  if (valueUpdates.length) {
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: sheetId,
-      requestBody: { valueInputOption: "RAW", data },
+      requestBody: { valueInputOption: "RAW", data: valueUpdates },
+    });
+  }
+  if (deleteRequests.length) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: { requests: deleteRequests },
     });
   }
 
-  return { found, monthsTouched, cellsCleared: data.length, daysCleared };
+  return { found, daysMarked, monthsDeleted };
 }
 
-// Days in a given month (monthIndex 0-11) — local helper for range clearing
-function daysInMonthLocal(year: number, monthIndex: number): number {
-  return new Date(year, monthIndex + 1, 0).getDate();
-}
 
 // ── Update WFH data from HR Excel export ──────────────────────────────────────
 //
@@ -1001,6 +1104,7 @@ export async function updateWFHFromExcel(
     // Detect format + build day-number → column index map
     const sheetHdr = sheetRows[0];
     const { dayColStart, hasSubRows: isNewFmt, typeCol } = detectFormat(sheetRows);
+    const idCol = detectIdentityCols(sheetHdr, dayColStart).id;
 
     const dayNumToColIdx = new Map<number, number>();
     for (let i = dayColStart; i < sheetHdr.length; i++) {
@@ -1016,13 +1120,13 @@ export async function updateWFHFromExcel(
     let ri = 1;
     while (ri < sheetRows.length) {
       const row = sheetRows[ri];
-      const id  = (row[0] ?? "").trim().toUpperCase();
+      const id  = cell(row, idCol).toUpperCase();
       if (!id) { ri++; continue; }
 
       const entry: EmpRows = { status: ri + 1, clockIn: -1, clockOut: -1, hours: -1 };
       if (isNewFmt) {
         let j = ri + 1;
-        while (j < sheetRows.length && !(sheetRows[j][0] ?? "").trim()) {
+        while (j < sheetRows.length && !cell(sheetRows[j], idCol)) {
           const sub = (sheetRows[j][typeCol] ?? "").trim().toLowerCase();
           if (sub === "clock in" || sub === "clock-in")       entry.clockIn  = j + 1;
           else if (sub === "clock out" || sub === "clock-out") entry.clockOut = j + 1;
@@ -1220,6 +1324,7 @@ export async function updateLeaveFromExcel(
     // Detect format + build day-number → column index map
     const sheetHdr = sheetRows[0];
     const { dayColStart, hasSubRows: isNewFmt } = detectFormat(sheetRows);
+    const idCol = detectIdentityCols(sheetHdr, dayColStart).id;
 
     const dayNumToColIdx = new Map<number, number>();
     for (let i = dayColStart; i < sheetHdr.length; i++) {
@@ -1235,12 +1340,12 @@ export async function updateLeaveFromExcel(
     let ri = 1;
     while (ri < sheetRows.length) {
       const row = sheetRows[ri];
-      const id  = (row[0] ?? "").trim().toUpperCase();
+      const id  = cell(row, idCol).toUpperCase();
       if (!id) { ri++; continue; }
       empRowMap.set(id, { status: ri + 1 });
       if (isNewFmt) {
         let j = ri + 1;
-        while (j < sheetRows.length && !(sheetRows[j][0] ?? "").trim()) j++;
+        while (j < sheetRows.length && !cell(sheetRows[j], idCol)) j++;
         ri = j;
       } else { ri++; }
     }
@@ -1279,4 +1384,63 @@ export async function updateLeaveFromExcel(
   }
 
   return { rowsProcessed, cellsWritten: totalCells, skipped, errors, monthsInFile };
+}
+
+// ── Employee reference details (Employee_Reference tab) ─────────────────────
+//
+// Reads per-employee profile fields from the "Employee_Reference" tab.
+// Columns are located by header name (case-insensitive, any order), so new
+// columns like "Date of Joining" / "Date of Leaving" are picked up as soon as
+// they are added to the sheet. Missing columns simply yield empty strings.
+export interface EmployeeReference {
+  employeeId:     string;
+  designation:    string;
+  employmentType: string; // "FTE" / "Intern" (Employee Entity Status)
+  dateOfJoining:  string;
+  dateOfLeaving:  string;
+}
+
+const REFERENCE_TAB = "Employee_Reference";
+
+export async function getEmployeeReferences(): Promise<Record<string, EmployeeReference>> {
+  const sheetId = process.env.GOOGLE_SHEET_ID;
+  if (!sheetId) throw new Error("GOOGLE_SHEET_ID is not set");
+
+  const sheets = getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: `${REFERENCE_TAB}!A:Z`,
+  });
+  const rows = (res.data.values ?? []) as string[][];
+  if (rows.length < 2) return {};
+
+  const hdr = rows[0].map(h => (h ?? "").trim().toLowerCase());
+  const find = (...candidates: string[]) =>
+    hdr.findIndex(h => candidates.some(c => h === c || h.includes(c)));
+
+  const col = {
+    empId:       find("employee id", "emp id", "employee number"),
+    designation: find("designation"),
+    type:        find("employee entity status", "entity status", "employment type", "fte/intern"),
+    doj:         find("date of joining", "joining date", "doj"),
+    dol:         find("date of leaving", "date of exit", "leaving date", "last working", "exit date", "dol"),
+  };
+  if (col.empId === -1) return {};
+
+  const get = (row: string[], idx: number) => (idx === -1 ? "" : (row[idx] ?? "").trim());
+
+  const out: Record<string, EmployeeReference> = {};
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    const employeeId = get(row, col.empId);
+    if (!employeeId) continue;
+    out[employeeId.toUpperCase()] = {
+      employeeId,
+      designation:    get(row, col.designation),
+      employmentType: get(row, col.type),
+      dateOfJoining:  get(row, col.doj),
+      dateOfLeaving:  get(row, col.dol),
+    };
+  }
+  return out;
 }

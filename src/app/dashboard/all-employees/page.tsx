@@ -44,7 +44,7 @@ function toWeeklyRecord(
   const otherLeaves = emptyOtherLeaves();
 
   for (const d of weekDays) {
-    if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "") continue;
+    if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "IN" || d.symbol === "") continue;
     workingDays++;
     if      (d.symbol === "P")   totalPresent += 1;
     else if (d.symbol === "WFH") { totalPresent += 1; totalWFH++; }

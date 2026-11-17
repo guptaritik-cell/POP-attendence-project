@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
 
-  let body: { employeeId?: string; from?: string; to?: string };
+  let body: { employeeId?: string; from?: string };
   try {
     body = await req.json();
   } catch {
@@ -29,38 +29,31 @@ export async function POST(req: Request) {
 
   const employeeId = (body.employeeId ?? "").trim();
   const fromStr    = (body.from ?? "").trim();
-  const toStr      = (body.to ?? "").trim();
 
   // ── Validation ──────────────────────────────────────────────────────────────
   if (!employeeId) {
     return NextResponse.json({ success: false, message: "employeeId is required" }, { status: 422 });
   }
   const from = parseISODate(fromStr);
-  const to   = parseISODate(toStr);
-  if (!from || !to) {
-    return NextResponse.json({ success: false, message: "from and to must be valid YYYY-MM-DD dates" }, { status: 422 });
+  if (!from) {
+    return NextResponse.json({ success: false, message: "from must be a valid YYYY-MM-DD date" }, { status: 422 });
   }
-
-  const fromSerial = new Date(from.year, from.month, from.day).getTime();
-  const toSerial   = new Date(to.year,   to.month,   to.day).getTime();
-  if (toSerial < fromSerial) {
-    return NextResponse.json({ success: false, message: "The 'to' date cannot be earlier than the 'from' date" }, { status: 422 });
-  }
-
-  if (from.year !== SHEET_YEAR || to.year !== SHEET_YEAR) {
+  if (from.year !== SHEET_YEAR) {
     return NextResponse.json(
-      { success: false, message: `Only ${SHEET_YEAR} data can be cleared — the spreadsheet holds records for ${SHEET_YEAR} only.` },
+      { success: false, message: `Only ${SHEET_YEAR} dates are supported — the spreadsheet holds records for ${SHEET_YEAR} only.` },
       { status: 422, headers: { "Cache-Control": "no-store" } },
     );
   }
 
+  // Marks the employee "Inactive" from `from` to the end of that month, and
+  // deletes their rows from every later month tab.
   try {
-    const { clearAttendanceRange } = await import("@/lib/sheets");
-    const result = await clearAttendanceRange(employeeId, from, to);
+    const { markEmployeeInactive } = await import("@/lib/sheets");
+    const result = await markEmployeeInactive(employeeId, from);
 
     if (!result.found) {
       return NextResponse.json(
-        { success: false, message: `No records found for employee "${employeeId}" in the selected date range.` },
+        { success: false, message: `No records found for employee "${employeeId}" from the selected month onward.` },
         { status: 404, headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -68,17 +61,16 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: `Cleared attendance for ${employeeId} across ${result.daysCleared} day(s) in ${result.monthsTouched} month(s).`,
-        daysCleared:   result.daysCleared,
-        cellsCleared:  result.cellsCleared,
-        monthsTouched: result.monthsTouched,
+        message: `Marked ${employeeId} inactive for ${result.daysMarked} day(s) and removed them from ${result.monthsDeleted.length} later month(s).`,
+        daysMarked:    result.daysMarked,
+        monthsDeleted: result.monthsDeleted,
       },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (err) {
     console.error("[attendance/remove]", String(err));
     return NextResponse.json(
-      { success: false, message: "Failed to clear attendance", detail: String(err) },
+      { success: false, message: "Failed to mark employee inactive", detail: String(err) },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }

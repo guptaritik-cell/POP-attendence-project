@@ -42,7 +42,7 @@ function computeTotals(days: DayRecord[]) {
   let totalML = 0, totalSL = 0, totalPL = 0;
   const otherLeaves = emptyOtherLeaves();
   for (const d of days) {
-    if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "") continue;
+    if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "IN" || d.symbol === "") continue;
     workingDays++;
     if      (d.symbol === "P")   { totalPresent += 1; }
     else if (d.symbol === "WFH") { totalPresent += 1; totalWFH++; }

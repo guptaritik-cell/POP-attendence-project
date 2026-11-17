@@ -361,7 +361,7 @@ export default function AnalyticsPage() {
         for (const r of tr) {
           for (const h of wr.columnHeaders) {
             const day = r.days.find(d => d.date === h);
-            if (!day || day.symbol === "WO" || day.symbol === "NHD" || day.symbol === "") continue;
+            if (!day || day.symbol === "WO" || day.symbol === "NHD" || day.symbol === "IN" || day.symbol === "") continue;
             workCount++;
             if (day.symbol === "A") absCount++;
           }
@@ -382,7 +382,7 @@ export default function AnalyticsPage() {
       for (const r of records) {
         const d = r.days.find(dd => dd.date === h);
         // Skip non-working days and missing entries
-        if (!d || d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "") continue;
+        if (!d || d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "IN" || d.symbol === "") continue;
         workingCount++;
         if (d.symbol === "P" || d.symbol === "WFH") present += 1;
         else if (d.symbol === "HD") present += 0.5;

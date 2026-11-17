@@ -32,7 +32,7 @@ function dailyTrend(records: EmployeeMonthRecord[], columnHeaders: string[]) {
       let total = 0, count = 0;
       for (const r of records) {
         const day = r.days.find(d => d.date === h);
-        if (!day || day.symbol === "WO" || day.symbol === "NHD" || day.symbol === "") continue;
+        if (!day || day.symbol === "WO" || day.symbol === "NHD" || day.symbol === "IN" || day.symbol === "") continue;
         count++;
         if (day.symbol === "P" || day.symbol === "WFH") total += 1;
         else if (day.symbol === "HD") total += 0.5;
@@ -125,7 +125,7 @@ function toWeeklyRecord(
   const otherLeaves = emptyOtherLeaves();
 
   for (const d of weekDays) {
-    if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "") continue;
+    if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "IN" || d.symbol === "") continue;
     workingDays++;
     if      (d.symbol === "P")   totalPresent += 1;
     else if (d.symbol === "WFH") { totalPresent += 1; totalWFH++; }

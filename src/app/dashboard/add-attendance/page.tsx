@@ -29,10 +29,6 @@ function toISO(d: Date) {
   const dd = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${dd}`;
 }
-function firstOfMonthISO() {
-  const now = new Date();
-  return toISO(new Date(now.getFullYear(), now.getMonth(), 1));
-}
 function todayISO() {
   return toISO(new Date());
 }
@@ -615,7 +611,17 @@ function WFHExcelPanel() {
   );
 }
 
-// ── Panel: Remove Attendance (clear an employee's attendance over a range) ────
+// ── Panel: Mark Inactive (employee exit) ──────────────────────────────────────
+// Marks the employee "Inactive" from the chosen date to the end of that month,
+// and deletes them from every later month tab.
+// "2026-11-05" → "2026-11-30" (last day of that month)
+function monthEndLabel(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(iso);
+  if (!m) return "";
+  const last = new Date(parseInt(m[1], 10), parseInt(m[2], 10), 0).getDate();
+  return `${m[1]}-${m[2]}-${String(last).padStart(2, "0")}`;
+}
+
 function RemoveAttendancePanel() {
   const { monthData } = useAttendanceStore();
 
@@ -623,8 +629,7 @@ function RemoveAttendancePanel() {
   const [selected, setSelected]     = useState<{ employeeId: string; name: string; team: string } | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const [fromDate, setFromDate] = useState(firstOfMonthISO());
-  const [toDate,   setToDate]   = useState(todayISO());
+  const [fromDate, setFromDate] = useState(todayISO());
 
   const [isWorking, setIsWorking] = useState(false);
   const [alert, setAlert]         = useState<AlertState>(null);
@@ -645,12 +650,11 @@ function RemoveAttendancePanel() {
     setAlert(null);
   }
 
-  const canRemove = !!selected && !!fromDate && !!toDate && !isWorking;
+  const canRemove = !!selected && !!fromDate && !isWorking;
 
   function openConfirm() {
     if (!selected) { setAlert({ type: "error", message: "Please select an employee first." }); return; }
-    if (!fromDate || !toDate) { setAlert({ type: "error", message: "Please choose both a from and to date." }); return; }
-    if (toDate < fromDate) { setAlert({ type: "error", message: "The 'to' date cannot be earlier than the 'from' date." }); return; }
+    if (!fromDate) { setAlert({ type: "error", message: "Please choose a from date." }); return; }
     setConfirmOpen(true);
   }
 
@@ -661,17 +665,18 @@ function RemoveAttendancePanel() {
       const res = await fetch("/api/attendance/remove", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeId: selected.employeeId, from: fromDate, to: toDate }),
+        body: JSON.stringify({ employeeId: selected.employeeId, from: fromDate }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setAlert({ type: "error", message: data.message ?? "Failed to remove attendance." });
+        setAlert({ type: "error", message: data.message ?? "Failed to mark employee inactive." });
       } else {
+        const removed: string[] = data.monthsDeleted ?? [];
         setAlert({
-          type: data.daysCleared > 0 ? "success" : "warning",
-          message: data.daysCleared > 0
-            ? `Cleared attendance for ${selected.name} — ${data.daysCleared} day(s) across ${data.monthsTouched} month(s).`
-            : `No attendance cells were found to clear for ${selected.name} in the selected range.`,
+          type: "success",
+          message:
+            `${selected.name} marked Inactive from ${fromDate} to ${monthEndLabel(fromDate)} (${data.daysMarked} day(s))` +
+            (removed.length ? `, and removed from ${removed.join(", ")}.` : "."),
         });
       }
     } catch {
@@ -744,23 +749,23 @@ function RemoveAttendancePanel() {
         )}
       </div>
 
-      {/* Date range */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-[#888888] mb-1.5">From date <span className="text-[#FF4D00]">*</span></label>
-          <input type="date" value={fromDate} max={toDate || undefined} onChange={e => { setFromDate(e.target.value); setAlert(null); }} className={dateInputClass} />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-[#888888] mb-1.5">To date <span className="text-[#FF4D00]">*</span></label>
-          <input type="date" value={toDate} min={fromDate || undefined} onChange={e => { setToDate(e.target.value); setAlert(null); }} className={dateInputClass} />
-        </div>
+      {/* Exit (inactive-from) date */}
+      <div>
+        <label className="block text-xs font-medium text-[#888888] mb-1.5">From date <span className="text-[#FF4D00]">*</span></label>
+        <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setAlert(null); }} className={dateInputClass} />
+        {fromDate && (
+          <p className="text-[11px] text-[#666666] mt-1.5">
+            Inactive from {fromDate} to {monthEndLabel(fromDate)}.
+          </p>
+        )}
       </div>
 
       <div className="flex items-start gap-2.5 rounded-lg px-4 py-3" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)" }}>
         <AlertTriangle size={15} className="text-[#f87171] mt-0.5 flex-shrink-0" />
         <p className="text-[12px] text-[#aaaaaa]">
-          This permanently clears the selected employee&apos;s attendance (status, clock-in/out and hours) for every day
-          in the range. Employee info columns are left intact. This cannot be undone.
+          The selected employee will be marked <span className="text-[#F5F5F5] font-medium">Inactive</span> from this
+          date to the end of the month (clock-in/out and hours cleared), and their rows will be permanently deleted
+          from every later month in the Google Sheet. This cannot be undone.
         </p>
       </div>
 
@@ -773,25 +778,26 @@ function RemoveAttendancePanel() {
           border: "none", cursor: !canRemove ? "not-allowed" : "pointer", opacity: 1,
         }}
       >
-        {isWorking ? <><Loader2 size={15} className="animate-spin" /> Removing…</> : <><Trash2 size={15} /> Remove Attendance</>}
+        {isWorking ? <><Loader2 size={15} className="animate-spin" /> Updating…</> : <><Trash2 size={15} /> Mark Inactive</>}
       </Button>
 
       <ConfirmDialog
         open={confirmOpen}
         busy={isWorking}
         destructive
-        title="Confirm attendance removal"
-        confirmLabel="Yes, remove"
-        busyLabel="Removing…"
+        title="Confirm mark inactive"
+        confirmLabel="Yes, mark inactive"
+        busyLabel="Updating…"
         onCancel={() => setConfirmOpen(false)}
         onConfirm={handleRemove}
         message={
           <>
-            Are you sure you want to clear all attendance for{" "}
+            Mark{" "}
             <span className="text-[#F5F5F5] font-medium">{selected?.name}</span>{" "}
-            (<span className="text-[#F5F5F5] font-medium">{selected?.employeeId}</span>) from{" "}
+            (<span className="text-[#F5F5F5] font-medium">{selected?.employeeId}</span>) Inactive from{" "}
             <span className="text-[#F5F5F5] font-medium">{fromDate}</span> to{" "}
-            <span className="text-[#F5F5F5] font-medium">{toDate}</span>? This cannot be undone.
+            <span className="text-[#F5F5F5] font-medium">{monthEndLabel(fromDate)}</span>, and delete them from all
+            later months? This cannot be undone.
           </>
         }
       />
@@ -809,19 +815,19 @@ const TABS: { mode: UploadMode; label: string; Icon: React.FC<{ size?: number }>
   },
   {
     mode: "wfh",
-    label: "Add WFH Data",
+    label: "Working Remotely (WFH/OD) Requests",
     Icon: Laptop,
     description: "",
   },
   {
     mode: "leave",
-    label: "Add Leave Data",
+    label: "Employees Leaves Request Data",
     Icon: Plane,
     description: "",
   },
   {
     mode: "remove",
-    label: "Remove Attendance",
+    label: "Mark Inactive",
     Icon: Trash2,
     description: "",
   },

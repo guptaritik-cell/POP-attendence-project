@@ -32,6 +32,9 @@ export const SYMBOL_META: Record<Exclude<AttendanceSymbol, "">, SymbolMeta> = {
   MAL: { code: "MAL", fullName: "Maternity Leave",   category: "leave",  bg: "rgba(244,114,182,0.14)", color: "#f9a8d4" },
   MIL: { code: "MIL", fullName: "Miscarriage Leave", category: "leave",  bg: "rgba(168,85,247,0.14)",  color: "#a78bfa" },
   UNL: { code: "UNL", fullName: "Unpaid Leave",      category: "leave",  bg: "rgba(120,113,108,0.14)", color: "#a8a29e" },
+  // Written as "Inactive" in the sheet from an employee's exit date to month end.
+  // Treated as a non-working day for that employee (like WO/NHD).
+  IN:  { code: "IN",  fullName: "Inactive",          category: "off",    bg: "rgba(71,85,105,0.18)",   color: "#64748b" },
 };
 
 export const SYMBOL_LIST: SymbolMeta[] = Object.values(SYMBOL_META);

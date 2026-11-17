@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
@@ -50,7 +51,7 @@ function weeklyChartData(record: EmployeeMonthRecord, weekRanges: WeekRange[]) {
     const days = record.days.filter(d => wr.columnHeaders.includes(d.date));
     let workingDays = 0, present = 0;
     for (const d of days) {
-      if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "") continue;
+      if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "IN" || d.symbol === "") continue;
       workingDays++;
       if      (d.symbol === "P")   present += 1;
       else if (d.symbol === "WFH") present += 1;
@@ -73,6 +74,43 @@ function StatPill({ label, value }: { label: string; value: string | number }) {
   );
 }
 
+// ── Employee reference details (designation / FTE-Intern / DOJ / DOL) ──────
+interface EmployeeReference {
+  employeeId: string;
+  designation: string;
+  employmentType: string;
+  dateOfJoining: string;
+  dateOfLeaving: string;
+}
+
+// Fetched once per page load and shared across drawer opens.
+let referencePromise: Promise<Record<string, EmployeeReference>> | null = null;
+function loadReferences(): Promise<Record<string, EmployeeReference>> {
+  if (!referencePromise) {
+    referencePromise = fetch("/api/employees/reference")
+      .then(r => (r.ok ? r.json() : {}))
+      .catch(() => ({}))
+      .then(data => {
+        // Allow a retry on the next open if the fetch failed / returned nothing
+        if (!data || Object.keys(data).length === 0) referencePromise = null;
+        return data ?? {};
+      });
+  }
+  return referencePromise;
+}
+
+function useEmployeeReference(employeeId: string | undefined) {
+  const [refs, setRefs] = useState<Record<string, EmployeeReference> | null>(null);
+  useEffect(() => {
+    if (!employeeId) return;
+    let cancelled = false;
+    loadReferences().then(data => { if (!cancelled) setRefs(data); });
+    return () => { cancelled = true; };
+  }, [employeeId]);
+  if (!employeeId) return { loading: false, ref: undefined };
+  return { loading: refs === null, ref: refs?.[employeeId.trim().toUpperCase()] };
+}
+
 // ── Main drawer ──────────────────────────────────────────────────────────────
 interface EmployeeDrawerProps {
   record: EmployeeMonthRecord | null;
@@ -82,6 +120,8 @@ interface EmployeeDrawerProps {
 
 export function EmployeeDrawer({ record, weekRanges, onClose }: EmployeeDrawerProps) {
   const chartData = record ? weeklyChartData(record, weekRanges) : [];
+  const { loading: refLoading, ref } = useEmployeeReference(record?.employeeId);
+  const refValue = (v: string | undefined) => (refLoading ? "…" : v || "—");
 
   return (
     <Sheet open={!!record} onOpenChange={open => !open && onClose()}>
@@ -118,6 +158,10 @@ export function EmployeeDrawer({ record, weekRanges, onClose }: EmployeeDrawerPr
               <div className="grid grid-cols-2 gap-3">
                 <StatPill label="Team"         value={record.team} />
                 <StatPill label="BU Lead"      value={record.buLead} />
+                <StatPill label="Designation"  value={record.designation || refValue(ref?.designation)} />
+                <StatPill label="FTE / Intern" value={record.employmentType || refValue(ref?.employmentType)} />
+                <StatPill label="Date of Joining" value={refValue(ref?.dateOfJoining)} />
+                <StatPill label="Date of Leaving" value={refValue(ref?.dateOfLeaving)} />
                 <StatPill label="Working Days" value={record.workingDays} />
                 <StatPill label="Absent Days"  value={record.totalAbsent} />
               </div>

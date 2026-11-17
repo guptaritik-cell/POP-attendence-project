@@ -47,11 +47,11 @@ export async function GET(
   }
 
   try {
-    const { getMonthData } = await import("@/lib/sheets");
+    const { getMonthData, sameTeam } = await import("@/lib/sheets");
     const data = await getMonthData(monthIndex, year);
 
     const scoped = session.user.role === "manager"
-      ? { ...data, records: data.records.filter(r => r.team === session.user.team) }
+      ? { ...data, records: data.records.filter(r => sameTeam(r.team, session.user.team)) }
       : data;
 
     return NextResponse.json(scoped, {

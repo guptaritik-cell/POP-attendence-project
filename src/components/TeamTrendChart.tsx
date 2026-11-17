@@ -25,7 +25,7 @@ function weekAvg(recs: EmployeeMonthRecord[], wr: WeekRange): number {
   for (const r of recs) {
     for (const h of wr.columnHeaders) {
       const day = r.days.find(d => d.date === h);
-      if (!day || day.symbol === "WO" || day.symbol === "NHD" || day.symbol === "") continue;
+      if (!day || day.symbol === "WO" || day.symbol === "NHD" || day.symbol === "IN" || day.symbol === "") continue;
       count++;
       if (day.symbol === "P" || day.symbol === "WFH") total += 1;
       else if (day.symbol === "HD") total += 0.5;

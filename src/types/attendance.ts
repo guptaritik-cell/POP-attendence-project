@@ -1,6 +1,7 @@
 export type AttendanceSymbol =
   | "P" | "A" | "HD" | "WFH" | "NHD" | "WO" | "ML" | "SL" | "PL"
   | "ADL" | "BEL" | "COL" | "MRL" | "MAL" | "MIL" | "UNL"
+  | "IN"   // Inactive — employee has left; excluded from working days
   | "";
 
 export interface DayRecord {
@@ -18,6 +19,8 @@ export interface Employee {
   name: string;
   team: string;
   buLead: string;
+  designation?: string;     // from monthly tab "Designation" column, when present
+  employmentType?: string;  // from monthly tab "Employee Entity Status" (FTE / Intern)
 }
 
 export interface EmployeeMonthRecord extends Employee {

@@ -96,12 +96,12 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { getMonthData } = await import("@/lib/sheets");
+    const { getMonthData, sameTeam } = await import("@/lib/sheets");
 
     // Accumulators
     const counts: Record<AttendanceSymbol, number> = {
       P: 0, A: 0, HD: 0, WFH: 0, NHD: 0, WO: 0, ML: 0, SL: 0, PL: 0,
-      ADL: 0, BEL: 0, COL: 0, MRL: 0, MAL: 0, MIL: 0, UNL: 0, "": 0,
+      ADL: 0, BEL: 0, COL: 0, MRL: 0, MAL: 0, MIL: 0, UNL: 0, IN: 0, "": 0,
     };
     const dayBreakdown: DaySummary[] = [];
 
@@ -137,7 +137,7 @@ export async function GET(req: Request) {
       const record = monthData.records.find(r => r.employeeId === employeeId);
       if (!record) continue;
 
-      if (session.user.role === "manager" && record.team !== session.user.team) {
+      if (session.user.role === "manager" && !sameTeam(record.team, session.user.team)) {
         return NextResponse.json(
           { success: false, message: "Forbidden" },
           { status: 403, headers: { "Cache-Control": "no-store" } },

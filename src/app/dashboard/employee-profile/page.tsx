@@ -55,7 +55,7 @@ function weeklyData(record: EmployeeMonthRecord, weekRanges: WeekRange[]) {
     const days = record.days.filter(d => wr.columnHeaders.includes(d.date));
     let workingDays = 0, present = 0;
     for (const d of days) {
-      if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "") continue;
+      if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "IN" || d.symbol === "") continue;
       workingDays++;
       if (d.symbol === "P" || d.symbol === "WFH") present += 1;
       else if (d.symbol === "HD") present += 0.5;
