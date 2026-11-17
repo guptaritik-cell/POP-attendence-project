@@ -46,6 +46,12 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
+          // Google-only managers have no password set.
+          if (!manager.passwordHash) {
+            console.error(`[auth] manager has no password (Google sign-in only): ${email}`);
+            return null;
+          }
+
           const valid = await bcrypt.compare(credentials.password, manager.passwordHash);
           if (!valid) {
             console.error(`[auth] wrong password for manager: ${email}`);

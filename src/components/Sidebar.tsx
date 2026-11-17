@@ -8,7 +8,7 @@ import { signOut, useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, UsersRound, BarChart3, UserCircle, UserPlus, FilePlus2,
-  ClipboardList, ChevronLeft, ChevronRight, LogOut, BookOpen, UserCog, X,
+  ClipboardList, ChevronLeft, ChevronRight, LogOut, BookOpen, UserCog, X, CalendarDays,
 } from "lucide-react";
 import {
   Tooltip, TooltipContent, TooltipTrigger,
@@ -36,6 +36,7 @@ const NAV_ITEMS: {
   { label: "Add Member",       href: "/dashboard/add-member",       Icon: UserPlus,    roles: ["admin"] },
   { label: "Add Attendance",  href: "/dashboard/add-attendance",  Icon: FilePlus2,    roles: ["admin"] },
   { label: "Manage Managers", href: "/dashboard/manage-managers", Icon: UserCog,      roles: ["admin"] },
+  { label: "Holiday List",         href: "/dashboard/holidays",        Icon: CalendarDays, roles: ["admin"] },
   { label: "Annotation",      href: "/dashboard/annotation",      Icon: BookOpen,     roles: ["admin", "manager"] },
 ];
 

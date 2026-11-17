@@ -1,5 +1,6 @@
 import { MongoClient, type Collection } from "mongodb";
 import type { ManagerDoc } from "@/types/manager";
+import type { HolidayDoc } from "@/types/holiday";
 
 const uri = process.env.MONGO_DB;
 
@@ -32,4 +33,9 @@ export default clientPromise;
 export async function getManagersCollection(): Promise<Collection<ManagerDoc>> {
   const client = await clientPromise;
   return client.db().collection<ManagerDoc>("managers");
+}
+
+export async function getHolidaysCollection(): Promise<Collection<HolidayDoc>> {
+  const client = await clientPromise;
+  return client.db().collection<HolidayDoc>("holidays");
 }

@@ -21,6 +21,8 @@ export interface Employee {
   buLead: string;
   designation?: string;     // from monthly tab "Designation" column, when present
   employmentType?: string;  // from monthly tab "Employee Entity Status" (FTE / Intern)
+  dateOfJoining?: string;   // from monthly tab "Date of Joining" column, when present
+  dateOfLeaving?: string;   // from monthly tab "Date of Leaving" column, when present
 }
 
 export interface EmployeeMonthRecord extends Employee {

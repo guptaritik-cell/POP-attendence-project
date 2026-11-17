@@ -28,7 +28,6 @@ export default function ManageManagersPage() {
   const [loadingList, setLoadingList] = useState(true);
 
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [team, setTeam] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -56,7 +55,7 @@ export default function ManageManagersPage() {
 
   function resetForm() {
     setEditingEmail(null);
-    setEmail(""); setPassword(""); setName(""); setTeam("");
+    setEmail(""); setName(""); setTeam("");
   }
 
   function handleEditClick(m: ManagerPublic) {
@@ -65,13 +64,12 @@ export default function ManageManagersPage() {
     setEmail(m.email);
     setName(m.name);
     setTeam(m.team);
-    setPassword("");
   }
 
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
     setAlert(null);
-    if (!email.trim() || !name.trim() || !team || (!isEditing && !password)) {
+    if (!email.trim() || !name.trim() || !team) {
       setAlert({ type: "error", message: "All fields are required." });
       return;
     }
@@ -92,7 +90,6 @@ export default function ManageManagersPage() {
         body: JSON.stringify({
           email: email.trim(),
           originalEmail: editingEmail,
-          password,
           name: name.trim(),
           team,
         }),
@@ -177,16 +174,6 @@ export default function ManageManagersPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="manager@company.com"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <Label>Password</Label>
-            <Input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder={isEditing ? "Leave blank to keep current password" : "At least 6 characters"}
               className={inputClass}
             />
           </div>
@@ -299,7 +286,7 @@ export default function ManageManagersPage() {
             {editingEmail && email.trim().toLowerCase() !== editingEmail.toLowerCase() && (
               <> (email will change to <span className="text-[#F5F5F5] font-medium">{email.trim()}</span>)</>
             )}
-            {password ? " and password" : ""}? They&apos;ll need the new details to sign in.
+            ? They&apos;ll sign in with Google using this email.
           </>
         }
       />

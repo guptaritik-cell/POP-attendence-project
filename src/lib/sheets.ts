@@ -259,6 +259,24 @@ export function detectIdentityCols(headerRow: string[], dayColStart: number): Id
   };
 }
 
+// A day column header starts with the day number ("1 Thu", "1-Jan (Thu)").
+// Day columns end at the first header that doesn't — e.g. "Total …",
+// "Date of Joining", or a blank cell.
+export function isDayHeader(h: string): boolean {
+  return /^\d/.test((h ?? "").trim());
+}
+
+// Columns AFTER the day block (e.g. "Date of Joining" / "Date of Leaving").
+function detectTrailingCols(headerRow: string[], afterCol: number): { doj: number; dol: number } {
+  let doj = -1, dol = -1;
+  for (let c = afterCol; c < (headerRow ?? []).length; c++) {
+    const h = (headerRow[c] ?? "").trim().toLowerCase();
+    if (doj === -1 && (h.includes("date of joining") || h === "doj" || h.includes("joining date"))) doj = c;
+    if (dol === -1 && (h.includes("date of leaving") || h.includes("date of exit") || h === "dol" || h.includes("leaving date") || h.includes("exit date"))) dol = c;
+  }
+  return { doj, dol };
+}
+
 const cell = (row: string[] | undefined, idx: number) =>
   idx < 0 || !row ? "" : (row[idx] ?? "").trim();
 
@@ -283,10 +301,12 @@ export function parseMonthData(
 
   for (let i = dayColStart; i < headerRow.length; i++) {
     const h = (headerRow[i] ?? "").trim();
-    if (!h || h.toLowerCase().startsWith("total")) break;
+    if (!isDayHeader(h)) break;
     dayColIndices.push(i);
     columnHeaders.push(h);
   }
+  const lastDayCol = dayColIndices.length ? dayColIndices[dayColIndices.length - 1] : dayColStart - 1;
+  const tc = detectTrailingCols(headerRow, lastDayCol + 1);
 
   // Helper: column header ("1 Th" or "1-Jan (Thu)" or "1 M") → day number
   function dayNumFromHeader(header: string, fallback: number): number {
@@ -297,6 +317,7 @@ export function parseMonthData(
   type EmpGroup = {
     employeeId: string; name: string; team: string; buLead: string;
     designation: string; employmentType: string;
+    dateOfJoining: string; dateOfLeaving: string;
     days: DayRecord[];
   };
   const groups: EmpGroup[] = [];
@@ -313,6 +334,8 @@ export function parseMonthData(
       const buLead = ic.buLead < typeCol ? cell(row, ic.buLead) : "";
       const designation    = cell(row, ic.designation);
       const employmentType = cell(row, ic.entity);
+      const dateOfJoining  = cell(row, tc.doj);
+      const dateOfLeaving  = cell(row, tc.dol);
       const statusRow = dayColIndices.map(ci => (row[ci] ?? "").trim());
 
       let clockInRow:  string[] = [];
@@ -347,7 +370,7 @@ export function parseMonthData(
         };
       });
 
-      groups.push({ employeeId, name, team, buLead, designation, employmentType, days });
+      groups.push({ employeeId, name, team, buLead, designation, employmentType, dateOfJoining, dateOfLeaving, days });
     }
   } else {
     for (let r = 1; r < rows.length; r++) {
@@ -360,6 +383,8 @@ export function parseMonthData(
       const buLead = cell(row, ic.buLead);
       const designation    = cell(row, ic.designation);
       const employmentType = cell(row, ic.entity);
+      const dateOfJoining  = cell(row, tc.doj);
+      const dateOfLeaving  = cell(row, tc.dol);
 
       const days: DayRecord[] = dayColIndices.map((colIdx, i) => {
         const raw    = row[colIdx] ?? "";
@@ -371,7 +396,7 @@ export function parseMonthData(
         };
       });
 
-      groups.push({ employeeId, name, team, buLead, designation, employmentType, days });
+      groups.push({ employeeId, name, team, buLead, designation, employmentType, dateOfJoining, dateOfLeaving, days });
     }
   }
 
@@ -428,6 +453,8 @@ export function parseMonthData(
     );
     if (g.designation)    rec.designation    = g.designation;
     if (g.employmentType) rec.employmentType = g.employmentType;
+    if (g.dateOfJoining)  rec.dateOfJoining  = g.dateOfJoining;
+    if (g.dateOfLeaving)  rec.dateOfLeaving  = g.dateOfLeaving;
     return rec;
   });
 
@@ -615,7 +642,7 @@ export async function addEmployee(
         let dayColAbsIdx = -1;
         for (let i = dayColStart; i < headers.length; i++) {
           const h = (headers[i] ?? "").trim();
-          if (!h || h.toLowerCase().startsWith("total")) break;
+          if (!isDayHeader(h)) break;
           // Headers look like "1 Th" or "1-Jan Thu" — day number is the first token
           const dayNum = parseInt(h.split(/[\s-]/)[0], 10);
           if (dayNum === joinDate) { dayColAbsIdx = i; break; }
@@ -704,7 +731,7 @@ export async function updateAttendanceFromCsv(
   const dayNumToColIdx = new Map<number, number>();
   for (let i = dayColStart; i < sheetHeader.length; i++) {
     const h = (sheetHeader[i] ?? "").trim();
-    if (!h || h.toLowerCase().startsWith("total")) break;
+    if (!isDayHeader(h)) break;
     const n = parseInt(h.split(/[\s-]/)[0], 10);
     if (!isNaN(n)) dayNumToColIdx.set(n, i);
   }
@@ -882,7 +909,7 @@ export async function markEmployeeInactive(
       const dayCols: { day: number; col: number }[] = [];
       for (let i = dayColStart; i < header.length; i++) {
         const h = (header[i] ?? "").trim();
-        if (!h || h.toLowerCase().startsWith("total")) break;
+        if (!isDayHeader(h)) break;
         const n = parseInt(h.split(/[\s-]/)[0], 10);
         if (!isNaN(n) && n >= from.day) dayCols.push({ day: n, col: i });
       }
@@ -1109,7 +1136,7 @@ export async function updateWFHFromExcel(
     const dayNumToColIdx = new Map<number, number>();
     for (let i = dayColStart; i < sheetHdr.length; i++) {
       const h = (sheetHdr[i] ?? "").trim();
-      if (!h || h.toLowerCase().startsWith("total")) break;
+      if (!isDayHeader(h)) break;
       const n = parseInt(h.split(/[\s-]/)[0], 10);
       if (!isNaN(n)) dayNumToColIdx.set(n, i);
     }
@@ -1329,7 +1356,7 @@ export async function updateLeaveFromExcel(
     const dayNumToColIdx = new Map<number, number>();
     for (let i = dayColStart; i < sheetHdr.length; i++) {
       const h = (sheetHdr[i] ?? "").trim();
-      if (!h || h.toLowerCase().startsWith("total")) break;
+      if (!isDayHeader(h)) break;
       const n = parseInt(h.split(/[\s-]/)[0], 10);
       if (!isNaN(n)) dayNumToColIdx.set(n, i);
     }

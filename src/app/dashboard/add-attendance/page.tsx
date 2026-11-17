@@ -837,9 +837,9 @@ export default function AddAttendancePage() {
   const [activeTab, setActiveTab] = useState<UploadMode>("all");
 
   return (
-    <div className="min-h-full px-3 sm:px-6 py-8 flex flex-col items-center">
+    <div className="min-h-full p-4 sm:p-6 flex flex-col items-start">
       <div
-        className="w-full max-w-[600px] rounded-2xl overflow-hidden"
+        className="w-full max-w-[1040px] rounded-2xl overflow-hidden"
         style={{
           background: "#181818",
           border: "1px solid rgba(255,77,0,0.3)",

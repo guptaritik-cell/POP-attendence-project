@@ -160,8 +160,8 @@ export function EmployeeDrawer({ record, weekRanges, onClose }: EmployeeDrawerPr
                 <StatPill label="BU Lead"      value={record.buLead} />
                 <StatPill label="Designation"  value={record.designation || refValue(ref?.designation)} />
                 <StatPill label="FTE / Intern" value={record.employmentType || refValue(ref?.employmentType)} />
-                <StatPill label="Date of Joining" value={refValue(ref?.dateOfJoining)} />
-                <StatPill label="Date of Leaving" value={refValue(ref?.dateOfLeaving)} />
+                <StatPill label="Date of Joining" value={record.dateOfJoining || refValue(ref?.dateOfJoining)} />
+                <StatPill label="Date of Leaving" value={record.dateOfLeaving || refValue(ref?.dateOfLeaving)} />
                 <StatPill label="Working Days" value={record.workingDays} />
                 <StatPill label="Absent Days"  value={record.totalAbsent} />
               </div>

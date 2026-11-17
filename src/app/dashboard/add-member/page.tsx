@@ -375,7 +375,7 @@ export default function AddMemberPage() {
   const inputClass = "h-9 text-sm bg-[#1E1E1E] border-[rgba(255,77,0,0.25)] text-[#F5F5F5] placeholder:text-[#555] focus:border-[#FF4D00] focus:ring-1 focus:ring-[#FF4D00]";
 
   return (
-    <div className="min-h-full px-3 sm:px-6 py-8 flex flex-col items-center">
+    <div className="min-h-full p-4 sm:p-6 flex flex-col items-start">
 
       {/* ── Form card ── */}
       <div
