@@ -29,15 +29,18 @@ const NAV_ITEMS: {
   roles: ("admin" | "manager")[];
 }[] = [
   { label: "All Employees",    href: "/dashboard/all-employees",    Icon: Users,       roles: ["admin", "manager"] },
-  { label: "Team View",        href: "/dashboard/team-view",        Icon: UsersRound,  roles: ["admin"] },
   { label: "Analytics",        href: "/dashboard/analytics",        Icon: BarChart3,   roles: ["admin", "manager"] },
-  { label: "Employee Profile", href: "/dashboard/employee-profile", Icon: UserCircle,  roles: ["admin", "manager"] },
-  { label: "Employee Summary", href: "/dashboard/employee-summary", Icon: ClipboardList, roles: ["admin", "manager"] },
   { label: "Add Member",       href: "/dashboard/add-member",       Icon: UserPlus,    roles: ["admin"] },
   { label: "Add Attendance",  href: "/dashboard/add-attendance",  Icon: FilePlus2,    roles: ["admin"] },
-  { label: "Manage Managers", href: "/dashboard/manage-managers", Icon: UserCog,      roles: ["admin"] },
-  { label: "Holiday List",         href: "/dashboard/holidays",        Icon: CalendarDays, roles: ["admin"] },
   { label: "Annotation",      href: "/dashboard/annotation",      Icon: BookOpen,     roles: ["admin", "manager"] },
+  { label: "Employee Profile", href: "/dashboard/employee-profile", Icon: UserCircle,  roles: ["admin", "manager"] },
+  { label: "Employee Summary", href: "/dashboard/employee-summary", Icon: ClipboardList, roles: ["admin", "manager"] },
+  { label: "Holiday List",         href: "/dashboard/holidays",        Icon: CalendarDays, roles: ["admin"] },
+  { label: "Manage Managers", href: "/dashboard/manage-managers", Icon: UserCog,      roles: ["admin"] },
+  { label: "Reports",        href: "/dashboard/reports",        Icon: ClipboardList,  roles: ["admin"] },
+  { label: "Team View",        href: "/dashboard/team-view",        Icon: UsersRound,  roles: ["admin"] },
+  
+  
 ];
 
 function getInitials(name: string) {

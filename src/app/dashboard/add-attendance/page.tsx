@@ -6,7 +6,7 @@ import {
   UploadCloud, FileText, X,
   CheckCircle2, XCircle, AlertTriangle,
   Loader2, CalendarDays, Laptop, Plane,
-  Trash2, Search,
+  Trash2, Search, ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ const MONTH_LABELS = [
 ];
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1];
-type UploadMode = "all" | "wfh" | "leave" | "remove";
+type UploadMode = "all" | "wfh" | "regularization" | "leave" | "remove";
 
 // ── Date helpers (ISO YYYY-MM-DD) ─────────────────────────────────────────────
 function toISO(d: Date) {
@@ -611,6 +611,117 @@ function WFHExcelPanel() {
   );
 }
 
+// ── Panel: Attendance Regularization (approved requests → Present) ──────────
+function RegularizationExcelPanel() {
+  const [month, setMonth] = useState(String(new Date().getMonth()));
+  const [file,  setFile]  = useState<File | null>(null);
+  const [isDrag, setIsDrag] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [alert, setAlert] = useState<AlertState>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleFile = useCallback((f: File) => {
+    const ext = f.name.split(".").pop()?.toLowerCase();
+    if (ext !== "xlsx" && ext !== "xls") {
+      setAlert({ type: "error", message: "Please upload an Excel file (.xlsx or .xls)" });
+      return;
+    }
+    setFile(f); setAlert(null);
+  }, []);
+
+  async function handleUpload() {
+    if (!file) return;
+    setIsUploading(true); setAlert(null);
+    try {
+      const fileBase64 = await fileToBase64(file);
+      const res = await fetch("/api/attendance/regularization-excel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileBase64, month: parseInt(month, 10) }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setAlert({ type: "error", message: data.message ?? "Upload failed" });
+      } else {
+        const stats = data.stats as { daysMarked: number; skipped: string[]; errors: string[] };
+        const extra = [
+          stats.skipped?.length ? `Skipped: ${stats.skipped.join(", ")}` : "",
+          stats.errors?.length  ? `Errors: ${stats.errors.join("; ")}`   : "",
+        ].filter(Boolean).join(" · ") || undefined;
+        setAlert({ type: stats.daysMarked === 0 ? "warning" : "success", message: data.message, extra });
+        if (stats.daysMarked > 0) setFile(null);
+      }
+    } catch {
+      setAlert({ type: "error", message: "Network error — please try again" });
+    } finally {
+      setIsUploading(false);
+      setConfirmOpen(false);
+    }
+  }
+
+  return (
+    <div className="px-4 sm:px-8 py-6 space-y-5">
+      <AnimatePresence>
+        {alert && (
+          <motion.div key="a" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+            <AlertBox alert={alert} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div>
+        <label className="block text-xs font-medium text-[#888888] mb-1.5">
+          Target Month <span className="text-[#FF4D00]">*</span>
+        </label>
+        <p className="text-[11px] text-[#666666] mb-2">
+          Approved requests whose Requested Date falls in this month are marked Present (P), replacing any existing value (A, WO, leave, etc.).
+        </p>
+        <DarkSelect
+          value={month}
+          onChange={v => { setMonth(v); setAlert(null); }}
+          options={MONTH_LABELS.map((l, i) => ({ label: l, value: String(i) }))}
+        />
+      </div>
+
+      {!file
+        ? <DropZone label="Attendance Regularization Excel File" accept=".xlsx, .xls" isDrag={isDrag} setIsDrag={setIsDrag} onFile={handleFile} inputRef={inputRef} />
+        : <FileCard file={file} onRemove={() => { setFile(null); setAlert(null); }} />
+      }
+
+      <Button
+        onClick={!isUploading && file ? () => setConfirmOpen(true) : undefined}
+        disabled={!file || isUploading}
+        className="w-full h-10 text-sm font-semibold text-white gap-2"
+        style={{
+          background: !file || isUploading ? "rgba(255,77,0,0.3)" : "linear-gradient(135deg, #FF4D00, #FF7A35)",
+          border: "none", cursor: !file || isUploading ? "not-allowed" : "pointer", opacity: 1,
+        }}
+      >
+        {isUploading ? <><Loader2 size={15} className="animate-spin" /> Syncing…</> : <><UploadCloud size={15} /> Sync Regularization Data</>}
+      </Button>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        busy={isUploading}
+        title="Confirm regularization upload"
+        confirmLabel="Yes, upload"
+        busyLabel="Uploading…"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={handleUpload}
+        message={
+          <>
+            Mark approved <span className="text-[#F5F5F5] font-medium">regularization</span> days as Present
+            {" "}for <span className="text-[#F5F5F5] font-medium">{MONTH_LABELS[parseInt(month, 10)]}</span>?
+            {" "}Any existing value on those days (A, WO, leave, etc.) will be replaced with P.
+          </>
+        }
+      />
+    </div>
+  );
+}
+
 // ── Panel: Mark Inactive (employee exit) ──────────────────────────────────────
 // Marks the employee "Inactive" from the chosen date to the end of that month,
 // and deletes them from every later month tab.
@@ -820,6 +931,12 @@ const TABS: { mode: UploadMode; label: string; Icon: React.FC<{ size?: number }>
     description: "",
   },
   {
+    mode: "regularization",
+    label: "Attendance Regularization Summary",
+    Icon: ClipboardCheck,
+    description: "",
+  },
+  {
     mode: "leave",
     label: "Employees Leaves Request Data",
     Icon: Plane,
@@ -895,6 +1012,8 @@ export default function AddAttendancePage() {
         {/* Panel (key forces remount on tab switch = clean state) */}
         {activeTab === "wfh"
           ? <WFHExcelPanel   key="wfh"   />
+          : activeTab === "regularization"
+          ? <RegularizationExcelPanel key="regularization" />
           : activeTab === "leave"
           ? <LeaveExcelPanel key="leave" />
           : activeTab === "remove"

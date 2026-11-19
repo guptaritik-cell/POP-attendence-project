@@ -13,6 +13,7 @@ import {
   emptyOtherLeaves,
   SYMBOL_META,
 } from "@/lib/attendanceSymbols";
+import { parseHolidayDate } from "@/lib/holidays";
 
 // Full names used for display in the UI
 const MONTH_DISPLAY_NAMES = [
@@ -1055,7 +1056,8 @@ export async function updateWFHFromExcel(
     const row        = rawRows[r];
     const empId      = String(row[ci.empId]   ?? "").trim();
     const reqTypeRaw = String(row[ci.reqType]  ?? "").trim();
-    const reqType    = reqTypeRaw.toLowerCase();
+    // Normalise "On-Duty", "On  Duty", "ON DUTY" etc. → "on duty"
+    const reqType    = reqTypeRaw.toLowerCase().replace(/[^a-z]+/g, " ").trim();
     const status     = String(row[ci.status]   ?? "").trim().toLowerCase();
 
     if (!empId) continue;
@@ -1204,6 +1206,199 @@ export async function updateWFHFromExcel(
   }
 
   return { rowsProcessed, cellsWritten: totalCells, skipped, errors, monthsInFile };
+}
+
+// ── Update attendance from Attendance Regularization export ──────────────────
+//
+// Accepts the "Attendance Regularization Requests" XLSX export (title rows
+// before the header are fine — the header row is found by "Employee Number").
+//
+//   Employee Number → employee ID
+//   Requested Date  → the day being regularized (marked Present)
+//   Request Status  → only "Approved" rows are applied
+//
+// Every approved day is set to "P", whatever it currently holds (blank, A, HD,
+// WO, leave, WFH, …); days already "P" are skipped. When the day
+// has no clocked hours, the standard 10:00–19:00 (09:00) is filled in so the
+// day counts towards Hours %, matching WFH uploads.
+export async function updateRegularizationFromExcel(
+  fileBuffer: Buffer,
+  targetMonth?: number,   // 0-indexed; when provided, only this month's entries are written
+): Promise<{
+  rowsProcessed: number;
+  cellsWritten:  number;
+  daysMarked:    number;
+  skipped:       string[];
+  errors:        string[];
+  monthsInFile:  number[];
+}> {
+  const sheetId = process.env.GOOGLE_SHEET_ID;
+  if (!sheetId) throw new Error("GOOGLE_SHEET_ID not set");
+
+  // 1. Parse the Excel file
+  const wb = XLSX.read(fileBuffer, { type: "buffer" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rawRows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, {
+    header: 1, defval: "", raw: true,
+  }) as (string | number)[][];
+
+  const hdrIdx = rawRows.findIndex(row =>
+    row.some(c => String(c ?? "").trim().toLowerCase() === "employee number"),
+  );
+  if (hdrIdx < 0) throw new Error('Could not find the "Employee Number" header row in the file');
+
+  const hdr = rawRows[hdrIdx].map(h => String(h ?? "").trim().toLowerCase());
+  const ci = {
+    empId:   hdr.indexOf("employee number"),
+    reqDate: hdr.indexOf("requested date"),
+    status:  hdr.indexOf("request status"),
+  };
+  const missing = Object.entries(ci).filter(([, v]) => v < 0).map(([k]) => k);
+  if (missing.length) throw new Error(`Missing required columns in Excel: ${missing.join(", ")}`);
+
+  // 2. Approved rows → (employee, day) grouped by month
+  type Entry = { employeeId: string; day: number };
+  const byMonth = new Map<number, Entry[]>();
+  const skipped: string[] = [];
+  let rowsProcessed = 0;
+
+  for (let r = hdrIdx + 1; r < rawRows.length; r++) {
+    const row    = rawRows[r];
+    const empId  = String(row[ci.empId] ?? "").trim();
+    if (!empId) continue;
+    const status = String(row[ci.status] ?? "").trim().toLowerCase();
+    if (status !== "approved") {
+      skipped.push(`${empId}: ${status || "no status"}`);
+      continue;
+    }
+    const iso = parseHolidayDate(row[ci.reqDate]);
+    if (!iso) {
+      skipped.push(`${empId}: invalid requested date "${String(row[ci.reqDate] ?? "")}"`);
+      continue;
+    }
+    const [, mo, d] = iso.split("-").map(Number);
+    const mIdx = mo - 1;
+    if (!byMonth.has(mIdx)) byMonth.set(mIdx, []);
+    byMonth.get(mIdx)!.push({ employeeId: empId, day: d });
+    rowsProcessed++;
+  }
+
+  const monthsInFile = [...byMonth.keys()].sort((a, b) => a - b);
+  if (!rowsProcessed) {
+    return { rowsProcessed: 0, cellsWritten: 0, daysMarked: 0, skipped, errors: [], monthsInFile };
+  }
+  if (typeof targetMonth === "number") {
+    for (const m of monthsInFile) if (m !== targetMonth) byMonth.delete(m);
+  }
+
+  // 3. Update each affected month tab
+  const sheets = getSheetsClient();
+  let totalCells = 0;
+  let daysMarked = 0;
+  const errors: string[] = [];
+
+  for (const [mIdx, entries] of byMonth) {
+    const tabName = MONTH_TAB_NAMES[mIdx];
+
+    let sheetRows: string[][];
+    try {
+      const res = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: tabName });
+      sheetRows = (res.data.values ?? []) as string[][];
+    } catch {
+      errors.push(`Could not read tab "${tabName}" — it may not exist yet`);
+      continue;
+    }
+    if (!sheetRows.length) { errors.push(`Tab "${tabName}" is empty`); continue; }
+
+    const sheetHdr = sheetRows[0];
+    const { dayColStart, hasSubRows: isNewFmt, typeCol } = detectFormat(sheetRows);
+    const idCol = detectIdentityCols(sheetHdr, dayColStart).id;
+
+    const dayNumToColIdx = new Map<number, number>();
+    for (let i = dayColStart; i < sheetHdr.length; i++) {
+      const h = (sheetHdr[i] ?? "").trim();
+      if (!isDayHeader(h)) break;
+      const n = parseInt(h.split(/[\s-]/)[0], 10);
+      if (!isNaN(n)) dayNumToColIdx.set(n, i);
+    }
+
+    // Employee ID → 0-based row indices of the Status row and its sub-rows
+    type EmpRows = { status: number; clockIn: number; clockOut: number; hours: number };
+    const empRowMap = new Map<string, EmpRows>();
+    let ri = 1;
+    while (ri < sheetRows.length) {
+      const id = cell(sheetRows[ri], idCol).toUpperCase();
+      if (!id) { ri++; continue; }
+      const entry: EmpRows = { status: ri, clockIn: -1, clockOut: -1, hours: -1 };
+      let j = ri + 1;
+      if (isNewFmt) {
+        while (j < sheetRows.length && !cell(sheetRows[j], idCol)) {
+          const sub = (sheetRows[j][typeCol] ?? "").trim().toLowerCase();
+          if (sub === "clock in" || sub === "clock-in")        entry.clockIn  = j;
+          else if (sub === "clock out" || sub === "clock-out") entry.clockOut = j;
+          else if (sub === "total wk" || sub === "total work" || sub === "hours" || sub === "total hours") entry.hours = j;
+          j++;
+        }
+      }
+      if (!empRowMap.has(id)) empRowMap.set(id, entry);
+      ri = j;
+    }
+
+    const data: { range: string; values: string[][] }[] = [];
+    const seen = new Set<string>();
+    let tabDays = 0;
+    for (const e of entries) {
+      const empKey = e.employeeId.toUpperCase();
+      const key = `${empKey}:${e.day}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const rows = empRowMap.get(empKey);
+      if (!rows) {
+        const msg = `${e.employeeId}: not found in ${tabName} tab`;
+        if (!skipped.includes(msg)) skipped.push(msg);
+        continue;
+      }
+      const colIdx = dayNumToColIdx.get(e.day);
+      if (colIdx === undefined) continue;
+
+      // Approved regularization always wins — any existing value (A, HD, WO,
+      // leave, WFH, …) is replaced with P. Only days already P are left as-is.
+      const current = (sheetRows[rows.status]?.[colIdx] ?? "").trim();
+      if (parseSymbol(current) === "P") {
+        skipped.push(`${e.employeeId}: ${e.day} ${tabName} already "P"`);
+        continue;
+      }
+
+      const col = colIndexToLetter(colIdx);
+      data.push({ range: `${tabName}!${col}${rows.status + 1}`, values: [["P"]] });
+      tabDays++;
+
+      if (isNewFmt) {
+        const hoursNow = rows.hours >= 0 ? (sheetRows[rows.hours]?.[colIdx] ?? "").trim() : "";
+        if (!parseHHMM(hoursNow)) {
+          if (rows.clockIn  >= 0) data.push({ range: `${tabName}!${col}${rows.clockIn  + 1}`, values: [["10:00"]] });
+          if (rows.clockOut >= 0) data.push({ range: `${tabName}!${col}${rows.clockOut + 1}`, values: [["19:00"]] });
+          if (rows.hours    >= 0) data.push({ range: `${tabName}!${col}${rows.hours    + 1}`, values: [["09:00"]] });
+        }
+      }
+    }
+
+    if (!data.length) continue;
+    try {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: { valueInputOption: "RAW", data },
+      });
+      totalCells += data.length;
+      daysMarked += tabDays;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`Failed to write to tab "${tabName}": ${msg}`);
+    }
+  }
+
+  return { rowsProcessed, cellsWritten: totalCells, daysMarked, skipped, errors, monthsInFile };
 }
 
 // ── Update leave data from HR Excel export ────────────────────────────────────

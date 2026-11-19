@@ -6,7 +6,10 @@ import {
   Search, CalendarDays, CheckCircle2, XCircle, TrendingUp,
   Clock, ClipboardList, Loader2, AlertCircle, Download,
   LogIn, LogOut, Timer, Zap, Target, AlarmClock, Hourglass,
+  Users, UserRound, Building2,
 } from "lucide-react";
+import { GroupSummary } from "@/components/GroupSummary";
+import { calculationRows } from "@/lib/summaryCalc";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAttendanceStore } from "@/lib/store";
@@ -119,7 +122,62 @@ function Ring({ value, color, size = 120 }: { value: number; color: string; size
 }
 
 // ── Main page ────────────────────────────────────────────────────────────────
+type SummaryMode = "employee" | "team" | "master";
+
+const MODES: { mode: SummaryMode; label: string; Icon: typeof Users }[] = [
+  { mode: "employee", label: "Single Employee", Icon: UserRound },
+  { mode: "team",     label: "Team Summary",    Icon: Users },
+  { mode: "master",   label: "Master Summary",  Icon: Building2 },
+];
+
 export default function EmployeeSummaryPage() {
+  const [mode, setMode] = useState<SummaryMode>("employee");
+
+  return (
+    <div className="flex flex-col min-h-full pb-12">
+      <div
+        className="sticky top-0 z-20 px-4 sm:px-6 pt-4"
+        style={{ background: "#0D0D0D", borderBottom: "1px solid rgba(255,77,0,0.12)" }}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <ClipboardList size={18} className="text-[#FF4D00]" />
+          <h1 className="text-base font-semibold text-[#F5F5F5]">Employee Summary</h1>
+        </div>
+        <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          {MODES.map(m => {
+            const active = m.mode === mode;
+            return (
+              <button
+                key={m.mode}
+                onClick={() => setMode(m.mode)}
+                className="relative flex items-center gap-1.5 px-4 py-2.5 text-[13px] font-medium whitespace-nowrap flex-shrink-0 transition-colors"
+                style={{ color: active ? "#F5F5F5" : "#666666", background: "transparent", border: "none", cursor: "pointer" }}
+              >
+                <m.Icon size={14} />
+                {m.label}
+                {active && (
+                  <motion.div
+                    layoutId="summary-tab-underline"
+                    className="absolute bottom-0 left-0 right-0 h-[2px] rounded-t"
+                    style={{ background: "linear-gradient(90deg, #FF4D00, #FF7A35)" }}
+                    transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {mode === "employee"
+        ? <SingleEmployeeSummary key="employee" />
+        : <GroupSummary key={mode} scope={mode} />}
+    </div>
+  );
+}
+
+// ── Single Employee ──────────────────────────────────────────────────────────
+function SingleEmployeeSummary() {
   const { monthData } = useAttendanceStore();
 
   // Employee picker
@@ -187,6 +245,23 @@ export default function EmployeeSummaryPage() {
     }
   }
 
+  async function downloadReportXlsx() {
+    if (!result) return;
+    const { downloadReport } = await import("@/lib/reportXlsx");
+    const { employee, range, summary, timeMetrics } = result;
+    const safeName = employee.name.replace(/[^a-z0-9]+/gi, "_");
+    downloadReport(
+      {
+        kind: "employee",
+        identity: { id: employee.employeeId, name: employee.name, team: employee.team, buLead: employee.buLead },
+        range,
+        summary,
+        timeMetrics,
+      },
+      `${safeName}_Attendance_Report_${range.from}_to_${range.to}.xlsx`,
+    );
+  }
+
   function downloadCSV() {
     if (!result) return;
     const { employee, range, summary, timeMetrics } = result;
@@ -235,8 +310,9 @@ export default function EmployeeSummaryPage() {
         ["Overtime",          timeMetrics.overtimeHours],
       );
     }
+    rows.push([], ["How it's calculated"], ["Metric", "Formula", "Calculation", "Result"], ...calculationRows(summary, timeMetrics));
     const csv  = rows.map(r => r.map(esc).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href     = url;
@@ -252,17 +328,9 @@ export default function EmployeeSummaryPage() {
     "focus:border-[#FF4D00] focus:outline-none focus:ring-1 focus:ring-[#FF4D00] [color-scheme:dark]";
 
   return (
-    <div className="flex flex-col min-h-full pb-12">
-      {/* ── Header / controls ── */}
-      <div
-        className="sticky top-0 z-20 px-4 sm:px-6 py-4"
-        style={{ background: "#0D0D0D", borderBottom: "1px solid rgba(255,77,0,0.12)" }}
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <ClipboardList size={18} className="text-[#FF4D00]" />
-          <h1 className="text-base font-semibold text-[#F5F5F5]">Employee Summary</h1>
-        </div>
-
+    <>
+      {/* ── Controls ── */}
+      <div className="px-4 sm:px-6 py-4" style={{ borderBottom: "1px solid rgba(255,77,0,0.08)" }}>
         <div className="flex flex-wrap items-end gap-3">
           {/* Employee search */}
           <div className="flex flex-col gap-1.5">
@@ -385,13 +453,21 @@ export default function EmployeeSummaryPage() {
             className="space-y-5"
           >
             {/* Toolbar */}
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
               <Button
                 onClick={downloadCSV}
                 className="h-9 px-4 rounded-md text-sm font-medium border border-[rgba(255,77,0,0.3)] bg-[#181818] text-[#F5F5F5] hover:bg-[rgba(255,77,0,0.1)]"
               >
                 <Download size={14} className="mr-2" />
-                Download CSV
+                CSV
+              </Button>
+              <Button
+                onClick={downloadReportXlsx}
+                className="h-9 px-4 rounded-md text-sm font-semibold text-white border-0"
+                style={{ background: "linear-gradient(135deg, #FF4D00, #FF7A35)" }}
+              >
+                <Download size={14} className="mr-2" />
+                Download Report (.xlsx)
               </Button>
             </div>
 
@@ -491,6 +567,6 @@ export default function EmployeeSummaryPage() {
           </motion.div>
         )}
       </div>
-    </div>
+    </>
   );
 }
