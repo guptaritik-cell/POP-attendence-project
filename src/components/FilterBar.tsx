@@ -71,7 +71,8 @@ export function FilterBar({
       "WFH %",
       "Half Days",
       "Total Leave",
-      "Absents (A)",
+      "Absent",
+      "Absent %",
       "Menstrual Leave (ML)",
       "Sick Leave (SL)",
       "Paid Leave (PL)",
@@ -79,10 +80,9 @@ export function FilterBar({
       "Hours %",
     ];
     const rows = filteredRecords.map(r => {
-      const casualLeave = Math.max(
-        0,
-        (r.totalAbsent || 0) - ((r.totalML || 0) + (r.totalSL || 0) + (r.totalPL || 0))
-      );
+      const totalLeave =
+        (r.totalML || 0) + (r.totalSL || 0) + (r.totalPL || 0) +
+        Object.values(r.otherLeaves ?? {}).reduce((sum, n) => sum + n, 0);
       return [
         r.employeeId,
         r.name,
@@ -94,8 +94,9 @@ export function FilterBar({
         r.totalWFH,
         r.wfhPercent.toFixed(1),
         r.totalHalfDay || 0,
-        r.totalAbsent || 0,
-        casualLeave,
+        totalLeave,
+        r.absentDays ?? 0,
+        (r.absentPercent ?? 0).toFixed(1),
         r.totalML || 0,
         r.totalSL || 0,
         r.totalPL || 0,

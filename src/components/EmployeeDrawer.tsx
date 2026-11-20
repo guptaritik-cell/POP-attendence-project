@@ -163,7 +163,8 @@ export function EmployeeDrawer({ record, weekRanges, onClose }: EmployeeDrawerPr
                 <StatPill label="Date of Joining" value={record.dateOfJoining || refValue(ref?.dateOfJoining)} />
                 <StatPill label="Date of Leaving" value={record.dateOfLeaving || refValue(ref?.dateOfLeaving)} />
                 <StatPill label="Working Days" value={record.workingDays} />
-                <StatPill label="Absent Days"  value={record.totalAbsent} />
+                <StatPill label="Absent Days"  value={record.absentDays ?? 0} />
+                <StatPill label="Absent %"     value={`${(record.absentPercent ?? 0).toFixed(1)}%`} />
               </div>
 
               <Separator style={{ background: "rgba(255,77,0,0.15)" }} />

@@ -7,7 +7,7 @@ import { FilterBar } from "@/components/FilterBar";
 import { AttendanceTable } from "@/components/AttendanceTable";
 import { EmployeeDrawer } from "@/components/EmployeeDrawer";
 import type { EmployeeMonthRecord, WeekRange } from "@/types/attendance";
-import { OTHER_LEAVE_CODES, emptyOtherLeaves } from "@/lib/attendanceSymbols";
+import { OTHER_LEAVE_CODES, emptyOtherLeaves, isAccountedSymbol, absentMetrics } from "@/lib/attendanceSymbols";
 
 // ── Summary stat card ─────────────────────────────────────────────────────────
 function StatCard({
@@ -42,10 +42,12 @@ function toWeeklyRecord(
   let totalPresent = 0, totalWFH = 0, totalAbsent = 0, totalHalfDay = 0, workingDays = 0;
   let totalML = 0, totalSL = 0, totalPL = 0;
   const otherLeaves = emptyOtherLeaves();
+  let accounted = 0;
 
   for (const d of weekDays) {
     if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "IN" || d.symbol === "") continue;
     workingDays++;
+    if (isAccountedSymbol(d.symbol)) accounted++;
     if      (d.symbol === "P")   totalPresent += 1;
     else if (d.symbol === "WFH") { totalPresent += 1; totalWFH++; }
     else if (d.symbol === "HD")  { totalPresent += 0.5; totalHalfDay++; }
@@ -58,6 +60,7 @@ function toWeeklyRecord(
 
   const attendancePercent = workingDays > 0 ? (totalPresent / workingDays) * 100 : 0;
   const wfhPercent        = workingDays > 0 ? (totalWFH / workingDays) * 100 : 0;
+  const { absent: absentDays, absentPercent } = absentMetrics(workingDays, accounted);
   const totalHours        = totalPresent * 9;
   const hoursPercent      = workingDays > 0 ? (totalHours / (workingDays * 9)) * 100 : 0;
 
@@ -65,7 +68,7 @@ function toWeeklyRecord(
     ...record,
     totalPresent, totalWFH, totalAbsent, totalHalfDay,
     totalML, totalSL, totalPL, otherLeaves,
-    workingDays, attendancePercent, wfhPercent, totalHours, hoursPercent,
+    workingDays, absentDays, absentPercent, attendancePercent, wfhPercent, totalHours, hoursPercent,
   };
 }
 

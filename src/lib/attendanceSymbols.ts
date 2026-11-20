@@ -55,3 +55,24 @@ export function badgeStyle(symbol: AttendanceSymbol | string): { bg: string; col
   if (!meta) return { bg: "transparent", color: "#333333", label: "—" };
   return { bg: meta.bg, color: meta.color, label: meta.code === "NHD" ? "NH" : meta.code };
 }
+
+// ── Absent (derived) ────────────────────────────────────────────────────────
+//   Absent   = Working Days − (all leaves + WFH + NHD + HD + P)
+//   Absent % = Absent ÷ Working Days × 100
+// i.e. every working day the employee is NOT accounted for — marked "A",
+// left blank, or carrying any unrecognised mark — counts as absent.
+// Callers pass the count of "accounted" days that fall inside Working Days, so
+// NHD already removed from Working Days is never subtracted twice.
+export function isAccountedSymbol(symbol: AttendanceSymbol | string): boolean {
+  if (symbol === "P" || symbol === "WFH" || symbol === "HD" || symbol === "NHD") return true;
+  const meta = SYMBOL_META[symbol as Exclude<AttendanceSymbol, "">];
+  return meta?.category === "leave";
+}
+
+export function absentMetrics(workingDays: number, accountedDays: number): { absent: number; absentPercent: number } {
+  const absent = Math.max(0, workingDays - accountedDays);
+  return {
+    absent,
+    absentPercent: workingDays > 0 ? Math.round((absent / workingDays) * 1000) / 10 : 0,
+  };
+}

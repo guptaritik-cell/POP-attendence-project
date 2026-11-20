@@ -2,6 +2,7 @@
 // for the Single Employee, Team and Master summaries.
 import type { AttendanceSymbol, DayRecord } from "@/types/attendance";
 import { getMonthData } from "@/lib/sheets";
+import { absentMetrics } from "@/lib/attendanceSymbols";
 
 // The spreadsheet only contains data for ONE specific year. Months whose year
 // doesn't match are treated as "no data".
@@ -35,6 +36,7 @@ export interface SummaryCounts {
   weekOff: number;
   holiday: number;
   workingDays: number;
+  absentPercent: number;
   attendancePercent: number;
   wfhPercent: number;
 }
@@ -127,9 +129,12 @@ export function toSummary(acc: Acc): SummaryCounts {
   const leaves = Object.fromEntries(LEAVE_KEYS.map(k => [k, c(k)])) as Record<string, number>;
   const totalLeaves = LEAVE_KEYS.reduce((s, k) => s + c(k), 0);
 
-  const present = c("P"), wfh = c("WFH"), absent = c("A"), halfDay = c("HD");
+  const present = c("P"), wfh = c("WFH"), halfDay = c("HD");
   // Working days exclude week-offs, holidays, inactive and empty/future days
-  const workingDays = present + wfh + halfDay + absent + totalLeaves;
+  const workingDays = present + wfh + halfDay + c("A") + totalLeaves;
+  // Absent = Working Days − (all leaves + WFH + NHD + HD + P). NHD days are
+  // already outside Working Days here, so they are not subtracted again.
+  const { absent, absentPercent } = absentMetrics(workingDays, present + wfh + halfDay + totalLeaves);
   // Attendance credit: full for P/WFH, half for HD
   const attended = present + wfh + halfDay * 0.5;
 
@@ -139,6 +144,7 @@ export function toSummary(acc: Acc): SummaryCounts {
     weekOff: c("WO"),
     holiday: c("NHD"),
     workingDays,
+    absentPercent,
     attendancePercent: round1(workingDays > 0 ? (attended / workingDays) * 100 : 0),
     wfhPercent:        round1(workingDays > 0 ? (wfh / workingDays) * 100 : 0),
   };

@@ -449,7 +449,7 @@ export default function EmployeeProfilePage() {
               </div>
 
               {/* ── Stat pills row ── */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <StatPill
                   icon={<CheckCircle2 size={16} />}
                   label="Present Days"
@@ -465,8 +465,14 @@ export default function EmployeeProfilePage() {
                 <StatPill
                   icon={<XCircle size={16} />}
                   label="Absent Days"
-                  value={selectedRecord.totalAbsent}
-                  color={selectedRecord.totalAbsent > 0 ? "#f87171" : "#4ade80"}
+                  value={selectedRecord.absentDays ?? 0}
+                  color={(selectedRecord.absentDays ?? 0) > 0 ? "#f87171" : "#4ade80"}
+                />
+                <StatPill
+                  icon={<XCircle size={16} />}
+                  label="Absent %"
+                  value={`${(selectedRecord.absentPercent ?? 0).toFixed(1)}%`}
+                  color={(selectedRecord.absentDays ?? 0) > 0 ? "#f87171" : "#4ade80"}
                 />
                 <StatPill
                   icon={<Clock size={16} />}

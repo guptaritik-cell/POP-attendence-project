@@ -13,7 +13,7 @@ import { EmployeeDrawer } from "@/components/EmployeeDrawer";
 import { TeamComparisonChart } from "@/components/TeamComparisonChart";
 import { TeamTrendChart } from "@/components/TeamTrendChart";
 import type { EmployeeMonthRecord } from "@/types/attendance";
-import { OTHER_LEAVE_CODES, emptyOtherLeaves } from "@/lib/attendanceSymbols";
+import { OTHER_LEAVE_CODES, emptyOtherLeaves, isAccountedSymbol, absentMetrics } from "@/lib/attendanceSymbols";
 
 // ── Animation variants ────────────────────────────────────────────────────────
 const containerVariants = {
@@ -123,10 +123,12 @@ function toWeeklyRecord(
   let totalPresent = 0, totalWFH = 0, totalAbsent = 0, totalHalfDay = 0, workingDays = 0;
   let totalML = 0, totalSL = 0, totalPL = 0;
   const otherLeaves = emptyOtherLeaves();
+  let accounted = 0;
 
   for (const d of weekDays) {
     if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "IN" || d.symbol === "") continue;
     workingDays++;
+    if (isAccountedSymbol(d.symbol)) accounted++;
     if      (d.symbol === "P")   totalPresent += 1;
     else if (d.symbol === "WFH") { totalPresent += 1; totalWFH++; }
     else if (d.symbol === "HD")  { totalPresent += 0.5; totalHalfDay++; }
@@ -139,6 +141,7 @@ function toWeeklyRecord(
 
   const attendancePercent = workingDays > 0 ? (totalPresent / workingDays) * 100 : 0;
   const wfhPercent        = workingDays > 0 ? (totalWFH / workingDays) * 100 : 0;
+  const { absent: absentDays, absentPercent } = absentMetrics(workingDays, accounted);
   const totalHours        = totalPresent * 9;
   const hoursPercent      = workingDays > 0 ? (totalHours / (workingDays * 9)) * 100 : 0;
 
@@ -146,7 +149,7 @@ function toWeeklyRecord(
     ...record,
     totalPresent, totalWFH, totalAbsent, totalHalfDay,
     totalML, totalSL, totalPL, otherLeaves,
-    workingDays, attendancePercent, wfhPercent, totalHours, hoursPercent,
+    workingDays, absentDays, absentPercent, attendancePercent, wfhPercent, totalHours, hoursPercent,
   };
 }
 
@@ -231,9 +234,11 @@ export default function TeamViewPage() {
     const total = baseRecs.length;
     const avgAtt = baseRecs.reduce((s, r) => s + r.attendancePercent, 0) / total;
     const workingDays = baseRecs[0]?.workingDays ?? 0;
-    const totalAbsent = baseRecs.reduce((s, r) => s + r.totalAbsent, 0);
+    // Absent = Working Days − (all leaves + WFH + NHD + HD + P)
+    const totalAbsent = baseRecs.reduce((s, r) => s + (r.absentDays ?? 0), 0);
+    const avgAbsentPct = baseRecs.reduce((s, r) => s + (r.absentPercent ?? 0), 0) / total;
     const spark = monthData ? dailyTrend(teamRecords, monthData.columnHeaders) : [];
-    return { total, avgAtt, workingDays, totalAbsent, spark };
+    return { total, avgAtt, workingDays, totalAbsent, avgAbsentPct, spark };
   }, [teamRecords, monthData, viewMode, activeWeekRange]);
 
   const attColor = (pct: number) =>
@@ -325,7 +330,7 @@ export default function TeamViewPage() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-2 sm:grid-cols-4 gap-4 px-4 sm:px-6 pt-4 pb-4"
+        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 px-4 sm:px-6 pt-4 pb-4"
       >
         <motion.div variants={cardVariants}>
           <StatCard label="Total Members" value={stats?.total ?? "—"} />
@@ -346,8 +351,15 @@ export default function TeamViewPage() {
         </motion.div>
         <motion.div variants={cardVariants}>
           <StatCard
-            label="Total Absences"
+            label="Total Absent Days"
             value={stats?.totalAbsent ?? "—"}
+            color={stats && stats.totalAbsent > 0 ? "#f87171" : "#4ade80"}
+          />
+        </motion.div>
+        <motion.div variants={cardVariants}>
+          <StatCard
+            label="Avg Absent %"
+            value={stats ? `${stats.avgAbsentPct.toFixed(1)}%` : "—"}
             color={stats && stats.totalAbsent > 0 ? "#f87171" : "#4ade80"}
           />
         </motion.div>

@@ -859,6 +859,7 @@ function employeesSheet(st: Styles, employees: ReportEmployeeRow[], showTeam: bo
     ...(showTeam ? [{ label: "Team", width: 18 }] : []),
     { label: "BU Lead", width: 16 },
     { label: "Present", width: 9 }, { label: "WFH", width: 8 }, { label: "Half Days", width: 9 }, { label: "Absent", width: 8 },
+    { label: "Absent %", width: 9, fmt: "0.0%" },
     { label: "Leaves", width: 8 }, { label: "Working Days", width: 10 },
     { label: "Attendance %", width: 11, fmt: "0.0%" },
     { label: "Attendance % calculation", width: 30, align: "left" as const },
@@ -875,7 +876,7 @@ function employeesSheet(st: Styles, employees: ReportEmployeeRow[], showTeam: bo
       e.employee.employeeId, e.employee.name,
       ...(showTeam ? [e.employee.team] : []),
       e.employee.buLead,
-      s.present, s.wfh, s.halfDay, s.absent, s.leaves.total, s.workingDays,
+      s.present, s.wfh, s.halfDay, s.absent, s.workingDays > 0 ? s.absent / s.workingDays : 0, s.leaves.total, s.workingDays,
       s.attendancePercent / 100,
       `(${s.present} + ${s.wfh} + 0.5 × ${s.halfDay}) ÷ ${s.workingDays}`,
       s.wfhPercent / 100,
@@ -892,6 +893,7 @@ function teamsSheet(st: Styles, teams: ReportTeamRow[]): Sheet {
   const headers = [
     { label: "Team", width: 22 }, { label: "Employees", width: 10 },
     { label: "Present", width: 9 }, { label: "WFH", width: 8 }, { label: "Half Days", width: 9 }, { label: "Absent", width: 8 },
+    { label: "Absent %", width: 9, fmt: "0.0%" },
     { label: "Leaves", width: 8 }, { label: "Working Days", width: 10 },
     { label: "Attendance %", width: 11, fmt: "0.0%" },
     { label: "WFH %", width: 9, fmt: "0.0%" },
@@ -899,6 +901,7 @@ function teamsSheet(st: Styles, teams: ReportTeamRow[]): Sheet {
   ];
   const rows = teams.map(t => [
     t.team, t.employeeCount, t.summary.present, t.summary.wfh, t.summary.halfDay, t.summary.absent,
+    t.summary.workingDays > 0 ? t.summary.absent / t.summary.workingDays : 0,
     t.summary.leaves.total, t.summary.workingDays, t.summary.attendancePercent / 100, t.summary.wfhPercent / 100,
     (t.timeMetrics?.totalMinutes ?? 0) / 1440,
   ] as Val[]);

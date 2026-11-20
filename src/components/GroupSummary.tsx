@@ -25,6 +25,7 @@ interface Summary {
   weekOff: number;
   holiday: number;
   workingDays: number;
+  absentPercent: number;
   attendancePercent: number;
   wfhPercent: number;
 }
@@ -160,6 +161,7 @@ function EmployeeTable({ rows, showTeam }: { rows: EmployeeRow[]; showTeam: bool
             {th("wfh", "WFH", true)}
             {th("halfDay", "Half Days", true)}
             {th("absent", "Absent", true)}
+            <th className="px-3 py-2.5 text-[11px] font-medium text-[#888888] text-right whitespace-nowrap">Absent %</th>
             {th("leaves", "Leaves", true)}
             {th("workingDays", "Working Days", true)}
             {th("att", "Att %", true)}
@@ -179,6 +181,7 @@ function EmployeeTable({ rows, showTeam }: { rows: EmployeeRow[]; showTeam: bool
               <td className="px-3 py-2 text-right text-[#FF7A35]">{r.summary.wfh}</td>
               <td className="px-3 py-2 text-right text-[#fbbf24]">{r.summary.halfDay}</td>
               <td className="px-3 py-2 text-right" style={{ color: r.summary.absent > 0 ? "#f87171" : "#888888" }}>{r.summary.absent}</td>
+              <td className="px-3 py-2 text-right" style={{ color: r.summary.absent > 0 ? "#f87171" : "#888888" }}>{r.summary.absentPercent}%</td>
               <td className="px-3 py-2 text-right text-[#f472b6]">{r.summary.leaves.total}</td>
               <td className="px-3 py-2 text-right text-[#94a3b8]">{r.summary.workingDays}</td>
               <td className="px-3 py-2 text-right font-semibold" style={{ color: attColor(r.summary.attendancePercent) }}>
@@ -281,6 +284,7 @@ export function GroupSummary({ scope }: { scope: "team" | "master" }) {
       ["WFH %", `${s.wfhPercent}%`],
       ["Half Days", s.halfDay],
       ["Absent", s.absent],
+      ["Absent %", `${s.absentPercent}%`],
       ["Total Leaves", s.leaves.total],
       ["Working Days", s.workingDays],
       ["Attendance %", `${s.attendancePercent}%`],
@@ -295,10 +299,10 @@ export function GroupSummary({ scope }: { scope: "team" | "master" }) {
     );
 
     if (scope === "master") {
-      rows.push([], ["Team", "Employees", "Present", "WFH", "Half Days", "Absent", "Leaves", "Working Days", "Attendance %", "WFH %", "Total Hours"]);
+      rows.push([], ["Team", "Employees", "Present", "WFH", "Half Days", "Absent", "Absent %", "Leaves", "Working Days", "Attendance %", "WFH %", "Total Hours"]);
       for (const t of result.teams) {
         rows.push([
-          t.team, t.employeeCount, t.summary.present, t.summary.wfh, t.summary.halfDay, t.summary.absent,
+          t.team, t.employeeCount, t.summary.present, t.summary.wfh, t.summary.halfDay, t.summary.absent, `${t.summary.absentPercent}%`,
           t.summary.leaves.total, t.summary.workingDays, `${t.summary.attendancePercent}%`, `${t.summary.wfhPercent}%`,
           t.timeMetrics?.totalHours ?? "—",
         ]);
@@ -306,14 +310,15 @@ export function GroupSummary({ scope }: { scope: "team" | "master" }) {
     }
 
     rows.push([], [
-      "Employee ID", "Name", "Team", "BU Lead", "Present", "WFH", "Half Days", "Absent",
+      "Employee ID", "Name", "Team", "BU Lead", "Present", "WFH", "Half Days", "Absent", "Absent %", "Absent % calculation",
       ...LEAVE_CODES, "Total Leaves", "Working Days", "Attendance %", "Attendance % calculation", "WFH %", "WFH % calculation",
       "Total Hours", "Avg Hours / Day", "Late Arrivals",
     ]);
     for (const e of result.employees) {
       rows.push([
         e.employee.employeeId, e.employee.name, e.employee.team, e.employee.buLead,
-        e.summary.present, e.summary.wfh, e.summary.halfDay, e.summary.absent,
+        e.summary.present, e.summary.wfh, e.summary.halfDay, e.summary.absent, `${e.summary.absentPercent}%`,
+        `[${e.summary.workingDays} − (${e.summary.leaves.total} + ${e.summary.wfh} + ${e.summary.halfDay} + ${e.summary.present})] ÷ ${e.summary.workingDays} × 100`,
         ...LEAVE_CODES.map(c => e.summary.leaves[c] ?? 0),
         e.summary.leaves.total, e.summary.workingDays,
         `${e.summary.attendancePercent}%`,
@@ -463,7 +468,7 @@ export function GroupSummary({ scope }: { scope: "team" | "master" }) {
               <StatPill icon={<CheckCircle2 size={18} />} label="Present"      value={result.summary.present} color="#4ade80" />
               <StatPill icon={<TrendingUp size={18} />}   label="WFH"          value={`${result.summary.wfh} · ${result.summary.wfhPercent}%`} color="#FF7A35" />
               <StatPill icon={<Clock size={18} />}        label="Half Days"    value={result.summary.halfDay} color="#fbbf24" />
-              <StatPill icon={<XCircle size={18} />}      label="Absent"       value={result.summary.absent} color={result.summary.absent > 0 ? "#f87171" : "#4ade80"} />
+              <StatPill icon={<XCircle size={18} />}      label="Absent"       value={`${result.summary.absent} · ${result.summary.absentPercent}%`} color={result.summary.absent > 0 ? "#f87171" : "#4ade80"} />
               <StatPill icon={<CalendarDays size={18} />} label="Working Days" value={result.summary.workingDays} color="#94a3b8" />
               <StatPill icon={<Target size={18} />}       label="Leaves"       value={result.summary.leaves.total} color="#f472b6" />
             </div>
@@ -486,7 +491,7 @@ export function GroupSummary({ scope }: { scope: "team" | "master" }) {
                   <table className="w-full text-sm">
                     <thead style={{ borderBottom: "1px solid rgba(255,77,0,0.15)" }}>
                       <tr className="text-[11px] text-[#888888]">
-                        {["Team", "Employees", "Present", "WFH", "Half Days", "Absent", "Leaves", "Working Days", "Att %", "WFH %", "Hours"].map((h, i) => (
+                        {["Team", "Employees", "Present", "WFH", "Half Days", "Absent", "Absent %", "Leaves", "Working Days", "Att %", "WFH %", "Hours"].map((h, i) => (
                           <th key={h} className={`px-3 py-2.5 font-medium whitespace-nowrap ${i === 0 ? "text-left" : "text-right"}`}>{h}</th>
                         ))}
                       </tr>
@@ -500,6 +505,7 @@ export function GroupSummary({ scope }: { scope: "team" | "master" }) {
                           <td className="px-3 py-2 text-right text-[#FF7A35]">{t.summary.wfh}</td>
                           <td className="px-3 py-2 text-right text-[#fbbf24]">{t.summary.halfDay}</td>
                           <td className="px-3 py-2 text-right" style={{ color: t.summary.absent > 0 ? "#f87171" : "#888888" }}>{t.summary.absent}</td>
+                          <td className="px-3 py-2 text-right" style={{ color: t.summary.absent > 0 ? "#f87171" : "#888888" }}>{t.summary.absentPercent}%</td>
                           <td className="px-3 py-2 text-right text-[#f472b6]">{t.summary.leaves.total}</td>
                           <td className="px-3 py-2 text-right text-[#94a3b8]">{t.summary.workingDays}</td>
                           <td className="px-3 py-2 text-right font-semibold" style={{ color: attColor(t.summary.attendancePercent) }}>{t.summary.attendancePercent}%</td>

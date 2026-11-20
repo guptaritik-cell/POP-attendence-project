@@ -46,6 +46,7 @@ interface SummaryResponse {
     weekOff: number;
     holiday: number;
     workingDays: number;
+    absentPercent: number;
     attendancePercent: number;
     wfhPercent: number;
   };
@@ -286,6 +287,7 @@ function SingleEmployeeSummary() {
       ["WFH %",              `${summary.wfhPercent}%`],
       ["Half Days",          summary.halfDay],
       ["Absent",             summary.absent],
+      ["Absent %",           `${summary.absentPercent}%`],
       ...LEAVE_CODES.map(code => [
         `${SYMBOL_META[code].fullName} (${code})`,
         summary.leaves[code] ?? 0,
@@ -502,7 +504,7 @@ function SingleEmployeeSummary() {
               <StatPill icon={<CheckCircle2 size={18} />} label="Present" value={result.summary.present} color="#4ade80" />
               <StatPill icon={<TrendingUp size={18} />}   label="WFH"     value={`${result.summary.wfh} · ${result.summary.wfhPercent}%`} color="#FF7A35" />
               <StatPill icon={<Clock size={18} />}        label="Half Days" value={result.summary.halfDay} color="#fbbf24" />
-              <StatPill icon={<XCircle size={18} />}      label="Absent"  value={result.summary.absent}  color={result.summary.absent > 0 ? "#f87171" : "#4ade80"} />
+              <StatPill icon={<XCircle size={18} />}      label="Absent"  value={`${result.summary.absent} · ${result.summary.absentPercent}%`}  color={result.summary.absent > 0 ? "#f87171" : "#4ade80"} />
               <StatPill icon={<CalendarDays size={18} />} label="Working Days" value={result.summary.workingDays} color="#94a3b8" />
               <StatPill icon={<Target size={18} />}       label="Leaves"  value={result.summary.leaves.total} color="#f472b6" />
             </div>

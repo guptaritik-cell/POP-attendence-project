@@ -10,6 +10,7 @@ export interface CalcSummary {
   weekOff: number;
   holiday: number;
   workingDays: number;
+  absentPercent?: number;
   attendancePercent: number;
   wfhPercent: number;
 }
@@ -58,10 +59,16 @@ export function calculationRows(s: CalcSummary, t: CalcTime | null): CalcRow[] {
       `${s.wfhPercent}%`,
     ],
     [
+      "Absent",
+      "Working Days − (all leaves + WFH + NHD + HD + P)  (NHD is already excluded from Working Days, so it is not subtracted twice)",
+      `${wd} − (${s.leaves.total} + ${s.wfh} + ${s.halfDay} + ${s.present})`,
+      String(s.absent),
+    ],
+    [
       "Absent %",
-      "Absent ÷ Working Days × 100",
+      "[Working Days − (all leaves + WFH + NHD + HD + P)] ÷ Working Days × 100",
       `${s.absent} ÷ ${wd} × 100`,
-      pct(s.absent, wd),
+      s.absentPercent !== undefined ? `${s.absentPercent}%` : pct(s.absent, wd),
     ],
     [
       "Leave %",

@@ -250,7 +250,9 @@ export default function AnalyticsPage() {
     // All records carry the same company working days (computed from calendar in sheets.ts)
     const workDays = records[0]?.workingDays ?? 0;
     const totalP   = records.reduce((s, r) => s + r.totalPresent, 0);
-    const totalA   = records.reduce((s, r) => s + r.totalAbsent, 0);
+    // Absent = Working Days − (all leaves + WFH + NHD + HD + P)
+    const totalA   = records.reduce((s, r) => s + (r.absentDays ?? 0), 0);
+    const avgAbsPct = records.reduce((s, r) => s + (r.absentPercent ?? 0), 0) / n;
     // Perfect attendance: zero absences AND zero half-days
     const perfect  = records.filter(r => r.totalAbsent === 0 && r.totalHalfDay === 0).length;
 
@@ -292,8 +294,8 @@ export default function AnalyticsPage() {
         color: hoursColor,
       },
       {
-        label: "Total Absences",
-        value: String(totalA),
+        label: "Total Absent Days · Avg Absent %",
+        value: `${totalA} · ${avgAbsPct.toFixed(1)}%`,
         icon: <UserX size={18} className="text-white" />,
         iconBg: "linear-gradient(135deg,#ef4444,#dc2626)",
         color: totalA > 0 ? "#f87171" : "#4ade80",
@@ -325,7 +327,7 @@ export default function AnalyticsPage() {
       const n       = tr.length;
       const present = tr.reduce((s, r) => s + r.attendancePercent, 0) / n;
       const wfh     = tr.reduce((s, r) => s + r.wfhPercent, 0) / n;
-      const absent  = tr.reduce((s, r) => s + (r.totalAbsent / (r.workingDays || 1)) * 100, 0) / n;
+      const absent  = tr.reduce((s, r) => s + (r.absentPercent ?? 0), 0) / n;
       return {
         team,
         present: Math.round(present * 10) / 10,
@@ -346,9 +348,9 @@ export default function AnalyticsPage() {
   // ── Section 5: Absence analysis ───────────────────────────────────────────
   const absenceLeaders = useMemo(() => {
     return [...records]
-      .sort((a, b) => b.totalAbsent - a.totalAbsent)
+      .sort((a, b) => (b.absentDays ?? 0) - (a.absentDays ?? 0))
       .slice(0, 5)
-      .map(r => ({ name: r.name, value: r.totalAbsent, id: r.employeeId }));
+      .map(r => ({ name: r.name, value: r.absentDays ?? 0, id: r.employeeId }));
   }, [records]);
 
   const heatmapCells = useMemo((): HeatmapCell[] => {

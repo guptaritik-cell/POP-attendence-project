@@ -36,6 +36,8 @@ export interface EmployeeMonthRecord extends Employee {
   totalPL: number;            // Paid Leave days
   otherLeaves: Record<string, number>; // Adoption/Bereavement/CompOff/Marriage/Maternity/Miscarriage/Unpaid — keyed by code
   workingDays: number;        // computed (excludes WO, NHD)
+  absentDays: number;         // Working Days − (all leaves + WFH + NHD + HD + P)
+  absentPercent: number;      // absentDays ÷ Working Days × 100
   attendancePercent: number;  // computed
   wfhPercent: number;         // computed
   totalHours: number;         // computed

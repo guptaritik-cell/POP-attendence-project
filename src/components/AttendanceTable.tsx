@@ -102,7 +102,7 @@ export function AttendanceTable({
   }, [viewMode, weekRange, columnHeaders]);
 
   // Total column count for skeleton
-  const totalCols = 3 + 8 + visibleHeaders.length; // sticky + fixed summary + day cols
+  const totalCols = 3 + 10 + visibleHeaders.length; // sticky + fixed summary + day cols
 
   // Sort
   const sorted = useMemo(() => {
@@ -221,6 +221,8 @@ export function AttendanceTable({
                 { label: "Att %",   key: "attendancePercent", w: 64  },
                 { label: "WFH",     key: "totalWFH",          w: 52  },
                 { label: "WFH %",   key: "wfhPercent",        w: 60  },
+                { label: "Absent",  key: "absentDays",        w: 60  },
+                { label: "Abs %",   key: "absentPercent",     w: 60  },
                 { label: "Hours",   key: "totalHours",        w: 60  },
                 { label: "Hrs %",   key: "hoursPercent",      w: 56  },
               ].map(col => (
@@ -314,6 +316,12 @@ export function AttendanceTable({
                     <td style={tdBase}>{record.totalWFH}</td>
                     <td style={{ ...tdBase, color: "#FF7A35" }}>
                       {record.wfhPercent.toFixed(1)}%
+                    </td>
+                    <td style={{ ...tdBase, color: (record.absentDays ?? 0) > 0 ? "#f87171" : "#888888" }}>
+                      {record.absentDays ?? 0}
+                    </td>
+                    <td style={{ ...tdBase, color: (record.absentDays ?? 0) > 0 ? "#f87171" : "#888888" }}>
+                      {(record.absentPercent ?? 0).toFixed(1)}%
                     </td>
                     <td style={tdBase}>{record.totalHours}h</td>
                     <td style={{ ...tdBase, color: "#94a3b8" }}>

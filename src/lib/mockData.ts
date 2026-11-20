@@ -4,7 +4,7 @@ import type {
   EmployeeMonthRecord,
   MonthData,
 } from "@/types/attendance";
-import { OTHER_LEAVE_CODES, emptyOtherLeaves } from "@/lib/attendanceSymbols";
+import { OTHER_LEAVE_CODES, emptyOtherLeaves, isAccountedSymbol, absentMetrics } from "@/lib/attendanceSymbols";
 
 // ── March 2025 column headers ────────────────────────────────────────────────
 const DAYS_OF_WEEK = ["Sat","Sun","Mon","Tue","Wed","Thu","Fri"];
@@ -41,9 +41,11 @@ function computeTotals(days: DayRecord[]) {
   let totalPresent = 0, totalWFH = 0, totalAbsent = 0, totalHalfDay = 0, workingDays = 0;
   let totalML = 0, totalSL = 0, totalPL = 0;
   const otherLeaves = emptyOtherLeaves();
+  let accounted = 0;
   for (const d of days) {
     if (d.symbol === "WO" || d.symbol === "NHD" || d.symbol === "IN" || d.symbol === "") continue;
     workingDays++;
+    if (isAccountedSymbol(d.symbol)) accounted++;
     if      (d.symbol === "P")   { totalPresent += 1; }
     else if (d.symbol === "WFH") { totalPresent += 1; totalWFH++; }
     else if (d.symbol === "HD")  { totalPresent += 0.5; totalHalfDay++; }
@@ -55,9 +57,10 @@ function computeTotals(days: DayRecord[]) {
   }
   const attendancePercent = workingDays > 0 ? (totalPresent / workingDays) * 100 : 0;
   const wfhPercent        = workingDays > 0 ? (totalWFH / workingDays) * 100 : 0;
+  const { absent: absentDays, absentPercent } = absentMetrics(workingDays, accounted);
   const totalHours        = totalPresent * 8;
   const hoursPercent      = workingDays > 0 ? (totalHours / (workingDays * 8)) * 100 : 0;
-  return { totalPresent, totalWFH, totalAbsent, totalHalfDay, totalML, totalSL, totalPL, otherLeaves, workingDays, attendancePercent, wfhPercent, totalHours, hoursPercent };
+  return { totalPresent, totalWFH, totalAbsent, totalHalfDay, totalML, totalSL, totalPL, otherLeaves, workingDays, absentDays, absentPercent, attendancePercent, wfhPercent, totalHours, hoursPercent };
 }
 
 function makeRecord(

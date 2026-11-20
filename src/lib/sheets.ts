@@ -12,6 +12,8 @@ import {
   OTHER_LEAVE_CODES,
   emptyOtherLeaves,
   SYMBOL_META,
+  isAccountedSymbol,
+  absentMetrics,
 } from "@/lib/attendanceSymbols";
 import { parseHolidayDate } from "@/lib/holidays";
 
@@ -100,6 +102,7 @@ function computeRecord(
   buLead: string,
   days: DayRecord[],
   companyWorkingDays: number,
+  accountedWorkingDays: number,
 ): EmployeeMonthRecord {
   let totalPresent = 0, totalWFH = 0, totalAbsent = 0, totalHalfDay = 0;
   let totalML = 0, totalSL = 0, totalPL = 0;
@@ -129,6 +132,7 @@ function computeRecord(
   const workingDays       = companyWorkingDays;
   const attendancePercent = workingDays > 0 ? (totalPresent / workingDays) * 100 : 0;
   const wfhPercent        = workingDays > 0 ? (totalWFH     / workingDays) * 100 : 0;
+  const { absent: absentDays, absentPercent } = absentMetrics(workingDays, accountedWorkingDays);
 
   // Actual clocked hours when available; fall back to 9 h per present day
   const totalHours   = totalMinutes > 0
@@ -142,7 +146,8 @@ function computeRecord(
     employeeId, name, team, buLead, days,
     totalPresent, totalWFH, totalAbsent, totalHalfDay,
     totalML, totalSL, totalPL, otherLeaves,
-    workingDays, attendancePercent, wfhPercent, totalHours, hoursPercent,
+    workingDays, absentDays, absentPercent,
+    attendancePercent, wfhPercent, totalHours, hoursPercent,
   };
 }
 
@@ -443,14 +448,26 @@ export function parseMonthData(
   // ── Phase 3: build final records with the correct working-days denominator ─
   // Inactive (exited) days on company working days are removed from that
   // employee's denominator so leaving mid-month doesn't tank their %.
+  //
+  // Absent = Working Days − (leaves + WFH + NHD + HD + P), counted only on the
+  // company working-day columns. Blank days later than today (current month)
+  // are not yet absent, so they are treated as accounted.
+  const now = new Date();
+  const isCurrentMonth = now.getFullYear() === year && now.getMonth() === monthIndex;
+  const isFutureMonth  = year > now.getFullYear() || (year === now.getFullYear() && monthIndex > now.getMonth());
   const records: EmployeeMonthRecord[] = groups.map(g => {
     let inactiveWorkingDays = 0;
+    let accountedWorkingDays = 0;
     g.days.forEach((day, colIdx) => {
-      if (day.symbol === "IN" && !woColSet.has(colIdx) && !nhdColSet.has(colIdx)) inactiveWorkingDays++;
+      if (woColSet.has(colIdx) || nhdColSet.has(colIdx)) return;
+      if (day.symbol === "IN") { inactiveWorkingDays++; return; }
+      const notYet = day.symbol === "" && (isFutureMonth || (isCurrentMonth && day.dayNumber > now.getDate()));
+      if (notYet || isAccountedSymbol(day.symbol)) accountedWorkingDays++;
     });
     const rec = computeRecord(
       g.employeeId, g.name, g.team, g.buLead, g.days,
       Math.max(0, companyWorkingDays - inactiveWorkingDays),
+      accountedWorkingDays,
     );
     if (g.designation)    rec.designation    = g.designation;
     if (g.employmentType) rec.employmentType = g.employmentType;
