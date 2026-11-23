@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
-import { updateAttendanceFromCsv, type AttendanceUploadMode } from "@/lib/sheets";
+import { updateAttendanceFromCsv, syncAttendanceFromCsv, type AttendanceUploadMode } from "@/lib/sheets";
 import { parseCsvText } from "@/lib/csvUtils";
 import { requireAdmin } from "@/lib/requireAdmin";
 
@@ -255,6 +255,7 @@ interface UploadBody {
   mode?: AttendanceUploadMode;    // default "all"
   csvText?: string;               // CSV file content (plain text)
   fileBase64?: string;            // Excel file content (base64-encoded ArrayBuffer)
+  dryRun?: boolean;               // mode "all": only return the planned add / remove / update
 }
 
 export async function POST(req: Request) {
@@ -268,7 +269,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, message: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { month, mode = "all", csvText, fileBase64 } = body;
+  const { month, mode = "all", csvText, fileBase64, dryRun = false } = body;
 
   if (typeof month !== "number" || month < 0 || month > 11) {
     return NextResponse.json({ success: false, message: "Invalid month (must be 0–11)" }, { status: 422 });
@@ -325,9 +326,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "File appears to be empty" }, { status: 422 });
     }
 
+    const monthLabel = MONTH_LABELS[month];
+
+    // Monthly Attendance Report → full sync: the month tab ends up with
+    // exactly the employees in the file (new ones added, missing ones deleted).
+    if (mode === "all") {
+      const sync = await syncAttendanceFromCsv(month, csvRows, { dryRun });
+      if (dryRun) return NextResponse.json({ success: true, plan: sync.plan });
+      const { plan } = sync;
+      const message =
+        `${monthLabel} attendance synced — ${plan.toUpdate} updated, ${plan.toAdd.length} added, ` +
+        `${plan.toRemove.length} removed. Backup saved as tab "${sync.backupTab}".`;
+      return NextResponse.json({
+        success: true,
+        message,
+        plan,
+        stats: { employeesUpdated: sync.employeesUpdated ?? 0, cellsWritten: sync.cellsWritten ?? 0, notFound: [] },
+      });
+    }
+
     const result = await updateAttendanceFromCsv(month, csvRows, mode);
 
-    const monthLabel = MONTH_LABELS[month];
     const modeLabel  = MODE_LABELS[mode];
     const message =
       result.cellsWritten === 0

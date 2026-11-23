@@ -37,7 +37,7 @@ const NAV_ITEMS: {
   { label: "Employee Summary", href: "/dashboard/employee-summary", Icon: ClipboardList, roles: ["admin", "manager"] },
   { label: "Holiday List",         href: "/dashboard/holidays",        Icon: CalendarDays, roles: ["admin"] },
   { label: "Manage Managers", href: "/dashboard/manage-managers", Icon: UserCog,      roles: ["admin"] },
-  { label: "Reports",        href: "/dashboard/reports",        Icon: ClipboardList,  roles: ["admin"] },
+  // { label: "Reports",        href: "/dashboard/reports",        Icon: ClipboardList,  roles: ["admin"] },
   { label: "Team View",        href: "/dashboard/team-view",        Icon: UsersRound,  roles: ["admin"] },
   
   

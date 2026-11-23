@@ -563,6 +563,43 @@ function colIndexToLetter(idx: number): string {
   return letter;
 }
 
+// Builds the empty row block for one employee in a tab's layout: the info /
+// Status row plus (new format) Clock In / Clock Out / Total WK sub-rows.
+// Identity values go into the columns detected from that tab's header; any
+// missing value is left blank.
+function buildEmployeeBlock(
+  headerRows: string[][],
+  employee: Partial<Employee> & { employeeId: string },
+): { rows: string[][]; dayColStart: number; hasSubRows: boolean } {
+  const fmt = headerRows.length
+    ? detectFormat(headerRows)
+    : { dayColStart: 5, hasSubRows: true, typeCol: 4 };
+  const ic  = detectIdentityCols(headerRows[0] ?? [], fmt.dayColStart);
+  const width = fmt.hasSubRows ? fmt.typeCol + 1 : fmt.dayColStart;
+  const info = new Array<string>(width).fill("");
+  const put = (idx: number, v: string | undefined) => {
+    if (idx >= 0 && idx < width && v) info[idx] = v;
+  };
+  put(ic.id,          employee.employeeId);
+  put(ic.name,        employee.name);
+  put(ic.team,        employee.team);
+  put(ic.buLead,      employee.buLead);
+  put(ic.designation, employee.designation);
+  put(ic.entity,      employee.employmentType);
+  if (!fmt.hasSubRows) return { rows: [info], dayColStart: fmt.dayColStart, hasSubRows: false };
+  const sub = (label: string) => {
+    const r = new Array<string>(width).fill("");
+    r[fmt.typeCol] = label;
+    return r;
+  };
+  info[fmt.typeCol] = "Status";
+  return {
+    rows: [info, sub("Clock In"), sub("Clock Out"), sub("Total WK")],
+    dayColStart: fmt.dayColStart,
+    hasSubRows: true,
+  };
+}
+
 export async function addEmployee(
   employee: Employee,
   joinMonth: number,   // 0-indexed: 0 = January … 11 = December
@@ -598,34 +635,7 @@ export async function addEmployee(
   // ── 3/4. Row layout is built per tab (see buildBlock below) because tabs can
   // have different column layouts (e.g. older months: ID/Name/Team/BU Lead;
   // newer months: Entity Status/Designation/ID/Name/Team/BU Lead).
-  const buildBlock = (headerRows: string[][]): { rows: string[][]; dayColStart: number } => {
-    const fmt = headerRows.length
-      ? detectFormat(headerRows)
-      : { dayColStart: 5, hasSubRows: true, typeCol: 4 };
-    const ic  = detectIdentityCols(headerRows[0] ?? [], fmt.dayColStart);
-    const width = fmt.hasSubRows ? fmt.typeCol + 1 : fmt.dayColStart;
-    const info = new Array<string>(width).fill("");
-    const put = (idx: number, v: string | undefined) => {
-      if (idx >= 0 && idx < width && v) info[idx] = v;
-    };
-    put(ic.id,          employee.employeeId);
-    put(ic.name,        employee.name);
-    put(ic.team,        employee.team);
-    put(ic.buLead,      employee.buLead);
-    put(ic.designation, employee.designation);
-    put(ic.entity,      employee.employmentType);
-    if (!fmt.hasSubRows) return { rows: [info], dayColStart: fmt.dayColStart };
-    const sub = (label: string) => {
-      const r = new Array<string>(width).fill("");
-      r[fmt.typeCol] = label;
-      return r;
-    };
-    info[fmt.typeCol] = "Status";
-    return {
-      rows: [info, sub("Clock In"), sub("Clock Out"), sub("Total WK")],
-      dayColStart: fmt.dayColStart,
-    };
-  };
+  const buildBlock = (headerRows: string[][]) => buildEmployeeBlock(headerRows, employee);
 
   // ── 5. Write each tab: find the true last row, then write the block ──────
   //
@@ -993,6 +1003,209 @@ export async function markEmployeeInactive(
   }
 
   return { found, daysMarked, monthsDeleted };
+}
+
+
+// ── Full sync from the Monthly Attendance Report ─────────────────────────────
+//
+// Makes the month tab contain EXACTLY the employees in the uploaded report:
+//   • ID in report AND sheet  → attendance cells updated (updateAttendanceFromCsv
+//                               rules: empty cells skipped, info columns untouched)
+//   • ID in report, not sheet → new block appended at the bottom in the tab's
+//                               layout; identity fields the report lacks stay blank
+//   • ID in sheet, not report → the employee's rows (Status + sub-rows) deleted
+//
+// Before any write a backup copy of the tab is created ("Nov backup …").
+// With dryRun the sheet is only read and the planned changes are returned.
+export interface SyncEmployeeRef { employeeId: string; name: string }
+export interface SyncPlan {
+  tab: string;
+  csvEmployees: number;
+  sheetEmployees: number;
+  toUpdate: number;
+  toAdd: SyncEmployeeRef[];
+  toRemove: SyncEmployeeRef[];
+}
+
+export async function syncAttendanceFromCsv(
+  monthIndex: number,
+  csvRows: string[][],
+  opts: { dryRun: boolean },
+): Promise<{
+  plan: SyncPlan;
+  backupTab?: string;
+  employeesUpdated?: number;
+  cellsWritten?: number;
+}> {
+  const sheetId = process.env.GOOGLE_SHEET_ID;
+  if (!sheetId) throw new Error("GOOGLE_SHEET_ID not set");
+
+  const tabName     = MONTH_TAB_NAMES[monthIndex];
+  const displayName = MONTH_DISPLAY_NAMES[monthIndex];
+  const sheets      = getSheetsClient();
+
+  // 1. Uploaded report → one record per employee ID (first occurrence wins)
+  const csvData = parseMonthData(csvRows, displayName, monthIndex, new Date().getFullYear());
+  if (!csvData.records.length) throw new Error("No employee records found in the uploaded file");
+  const csvById = new Map<string, EmployeeMonthRecord>();
+  for (const r of csvData.records) {
+    const key = r.employeeId.trim().toUpperCase();
+    if (key && !csvById.has(key)) csvById.set(key, r);
+  }
+
+  // The report carries "Department" instead of "Team" — use it as the team
+  // for newly added employees when the report has no Team column.
+  const csvFmt = detectFormat(csvRows);
+  const csvIc  = detectIdentityCols(csvRows[0], csvFmt.dayColStart);
+  const deptCol = (csvRows[0] ?? [])
+    .slice(0, csvFmt.dayColStart)
+    .findIndex(h => (h ?? "").trim().toLowerCase().includes("department"));
+  const deptById = new Map<string, string>();
+  if (deptCol >= 0) {
+    for (const row of csvRows.slice(1)) {
+      const id = cell(row, csvIc.id).toUpperCase();
+      if (id && !deptById.has(id)) deptById.set(id, cell(row, deptCol));
+    }
+  }
+
+  // 2. Current sheet tab + its row blocks per employee
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+  const tabMeta = (meta.data.sheets ?? []).find(sh => sh.properties?.title === tabName);
+  const gid = tabMeta?.properties?.sheetId;
+  if (gid === undefined || gid === null) throw new Error(`Sheet tab "${tabName}" does not exist`);
+
+  const sheetRes  = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: tabName });
+  const sheetRows = (sheetRes.data.values ?? []) as string[][];
+  if (!sheetRows.length) throw new Error(`Sheet tab "${tabName}" is empty`);
+
+  const header = sheetRows[0];
+  const { dayColStart, hasSubRows: isNewFmt, typeCol } = detectFormat(sheetRows);
+  const ic = detectIdentityCols(header, dayColStart);
+  const idHeader = cell(header, ic.id).toUpperCase();
+
+  type Block = { id: string; name: string; start: number; end: number };
+  const blocks: Block[] = [];
+  for (let r = 1; r < sheetRows.length; r++) {
+    const id = cell(sheetRows[r], ic.id).toUpperCase();
+    if (!id || id === idHeader) continue;
+    let end = r + 1;
+    if (isNewFmt) {
+      while (
+        end < sheetRows.length &&
+        !cell(sheetRows[end], ic.id) &&
+        SUB_ROW_LABELS.has((sheetRows[end][typeCol] ?? "").trim().toLowerCase())
+      ) end++;
+    }
+    blocks.push({ id, name: cell(sheetRows[r], ic.name), start: r, end });
+  }
+  const sheetIds = new Set(blocks.map(b => b.id));
+
+  const removeBlocks = blocks.filter(b => !csvById.has(b.id));
+  const addRecords   = [...csvById.entries()].filter(([id]) => !sheetIds.has(id)).map(([, r]) => r);
+
+  const removedSeen = new Set<string>();
+  const plan: SyncPlan = {
+    tab: tabName,
+    csvEmployees: csvById.size,
+    sheetEmployees: sheetIds.size,
+    toUpdate: csvById.size - addRecords.length,
+    toAdd: addRecords.map(r => ({ employeeId: r.employeeId, name: r.name })),
+    toRemove: removeBlocks
+      .filter(b => (removedSeen.has(b.id) ? false : (removedSeen.add(b.id), true)))
+      .map(b => ({ employeeId: b.id, name: b.name })),
+  };
+  if (opts.dryRun) return { plan };
+
+  // 3. Backup copy of the tab before anything is written
+  const stamp = new Date().toISOString().slice(0, 16).replace("T", " ").replace(":", "");
+  const backupTab = `${tabName} backup ${stamp}`;
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: sheetId,
+    requestBody: {
+      requests: [{
+        duplicateSheet: {
+          sourceSheetId: gid,
+          newSheetName: backupTab,
+          insertSheetIndex: (meta.data.sheets ?? []).length,
+        },
+      }],
+    },
+  });
+
+  // 4. Update employees present in both (row numbers unchanged by this step)
+  const updated = await updateAttendanceFromCsv(monthIndex, csvRows, "all");
+  let cellsWritten = updated.cellsWritten;
+
+  // 5. Append new employees below the last used row
+  if (addRecords.length) {
+    const dayNumToColIdx = new Map<number, number>();
+    for (let i = dayColStart; i < header.length; i++) {
+      const h = (header[i] ?? "").trim();
+      if (!isDayHeader(h)) break;
+      const n = parseInt(h.split(/[\s-]/)[0], 10);
+      if (!isNaN(n)) dayNumToColIdx.set(n, i);
+    }
+
+    const out: string[][] = [];
+    for (const r of addRecords) {
+      const key = r.employeeId.trim().toUpperCase();
+      const { rows, hasSubRows } = buildEmployeeBlock(sheetRows, {
+        employeeId:     r.employeeId,
+        name:           r.name,
+        team:           r.team || deptById.get(key) || "",
+        buLead:         r.buLead,
+        designation:    r.designation,
+        employmentType: r.employmentType,
+      });
+      const set = (rowIdx: number, col: number, v: string | undefined) => {
+        if (!v || rowIdx >= rows.length) return;
+        while (rows[rowIdx].length <= col) rows[rowIdx].push("");
+        rows[rowIdx][col] = v;
+        cellsWritten++;
+      };
+      for (const d of r.days) {
+        const col = dayNumToColIdx.get(d.dayNumber);
+        if (col === undefined) continue;
+        set(0, col, d.symbol || undefined);
+        if (hasSubRows) {
+          set(1, col, d.clockIn);
+          set(2, col, d.clockOut);
+          set(3, col, d.hoursWorked);
+        }
+      }
+      out.push(...rows);
+    }
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: `${tabName}!A${sheetRows.length + 1}`,
+      valueInputOption: "RAW",
+      requestBody: { values: out },
+    });
+  }
+
+  // 6. Delete removed employees bottom-up so earlier row indices stay valid.
+  // Appended rows sit below every deleted block, so they just shift up.
+  if (removeBlocks.length) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        requests: [...removeBlocks]
+          .sort((a, z) => z.start - a.start)
+          .map(b => ({
+            deleteDimension: {
+              range: { sheetId: gid, dimension: "ROWS" as const, startIndex: b.start, endIndex: b.end },
+            },
+          })),
+      },
+    });
+  }
+
+  return {
+    plan,
+    backupTab,
+    employeesUpdated: updated.employeesUpdated + addRecords.length,
+    cellsWritten,
+  };
 }
 
 

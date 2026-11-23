@@ -72,6 +72,15 @@ function DarkSelect({
   );
 }
 
+type SyncPlan = {
+  tab: string;
+  csvEmployees: number;
+  sheetEmployees: number;
+  toUpdate: number;
+  toAdd: { employeeId: string; name: string }[];
+  toRemove: { employeeId: string; name: string }[];
+};
+
 type AlertState = {
   type: "success" | "error" | "warning";
   message: string;
@@ -202,6 +211,8 @@ function AttendanceUploadPanel({ mode }: { mode: "all" }) {
   const [isUploading, setIsUploading] = useState(false);
   const [alert, setAlert] = useState<AlertState>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [plan, setPlan] = useState<SyncPlan | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const handleFile = useCallback((f: File) => {
@@ -212,19 +223,46 @@ function AttendanceUploadPanel({ mode }: { mode: "all" }) {
     setFile(f); setAlert(null);
   }, []);
 
+  async function requestBody(dryRun: boolean) {
+    // Excel → send as base64; CSV → send as plain text
+    return isExcel(file!)
+      ? { month: parseInt(month, 10), mode, dryRun, fileBase64: await fileToBase64(file!) }
+      : { month: parseInt(month, 10), mode, dryRun, csvText: await file!.text() };
+  }
+
+  // Step 1: dry run — read the sheet and show who will be updated / added / removed
+  async function handlePreview() {
+    if (!file) return;
+    setIsPreviewing(true); setAlert(null); setPlan(null);
+    try {
+      const res  = await fetch("/api/attendance/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(await requestBody(true)),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setAlert({ type: "error", message: data.message ?? "Could not read the file" });
+      } else {
+        setPlan(data.plan as SyncPlan);
+        setConfirmOpen(true);
+      }
+    } catch {
+      setAlert({ type: "error", message: "Network error — please try again" });
+    } finally {
+      setIsPreviewing(false);
+    }
+  }
+
+  // Step 2: real sync after the admin confirms the plan
   async function handleUpload() {
     if (!file) return;
     setIsUploading(true); setAlert(null);
     try {
-      // Excel → send as base64; CSV → send as plain text
-      const body = isExcel(file)
-        ? { month: parseInt(month, 10), mode, fileBase64: await fileToBase64(file) }
-        : { month: parseInt(month, 10), mode, csvText: await file.text() };
-
       const res  = await fetch("/api/attendance/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(await requestBody(false)),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -243,8 +281,11 @@ function AttendanceUploadPanel({ mode }: { mode: "all" }) {
     } finally {
       setIsUploading(false);
       setConfirmOpen(false);
+      setPlan(null);
     }
   }
+
+  const removeShare = plan && plan.sheetEmployees > 0 ? plan.toRemove.length / plan.sheetEmployees : 0;
 
   const fileExt = file ? (file.name.split(".").pop() ?? "").toLowerCase() : "";
 
@@ -297,31 +338,63 @@ function AttendanceUploadPanel({ mode }: { mode: "all" }) {
       </div> */}
 
       <Button
-        onClick={!isUploading && file ? () => setConfirmOpen(true) : undefined}
-        disabled={!file || isUploading}
+        onClick={!isUploading && !isPreviewing && file ? handlePreview : undefined}
+        disabled={!file || isUploading || isPreviewing}
         className="w-full h-10 text-sm font-semibold text-white gap-2"
         style={{
-          background: !file || isUploading ? "rgba(255,77,0,0.3)" : "linear-gradient(135deg, #FF4D00, #FF7A35)",
-          border: "none", cursor: !file || isUploading ? "not-allowed" : "pointer", opacity: 1,
+          background: !file || isUploading || isPreviewing ? "rgba(255,77,0,0.3)" : "linear-gradient(135deg, #FF4D00, #FF7A35)",
+          border: "none", cursor: !file || isUploading || isPreviewing ? "not-allowed" : "pointer", opacity: 1,
         }}
       >
-        {isUploading ? <><Loader2 size={15} className="animate-spin" /> Syncing…</> : <><UploadCloud size={15} /> Upload & Sync</>}
+        {isUploading ? <><Loader2 size={15} className="animate-spin" /> Syncing…</>
+          : isPreviewing ? <><Loader2 size={15} className="animate-spin" /> Checking sheet…</>
+          : <><UploadCloud size={15} /> Upload & Sync</>}
       </Button>
 
       <ConfirmDialog
-        open={confirmOpen}
+        open={confirmOpen && !!plan}
         busy={isUploading}
-        title="Confirm attendance upload"
-        confirmLabel="Yes, upload"
-        busyLabel="Uploading…"
-        onCancel={() => setConfirmOpen(false)}
+        destructive={!!plan && plan.toRemove.length > 0}
+        title="Confirm attendance sync"
+        confirmLabel={plan && plan.toRemove.length > 0 ? `Yes, sync & remove ${plan.toRemove.length}` : "Yes, sync"}
+        busyLabel="Syncing…"
+        onCancel={() => { setConfirmOpen(false); setPlan(null); }}
         onConfirm={handleUpload}
-        message={
-          <>
-            Are you sure you want to add the <span className="text-[#F5F5F5] font-medium">Attendance</span> sheet
-            {" "}for <span className="text-[#F5F5F5] font-medium">{MONTH_LABELS[parseInt(month, 10)]} {year}</span>?
-          </>
-        }
+        message={plan && (
+          <div className="space-y-3 text-left">
+            <p>
+              The <span className="text-[#F5F5F5] font-medium">{MONTH_LABELS[parseInt(month, 10)]} {year}</span> tab
+              will contain only the {plan.csvEmployees} employees in this file.
+            </p>
+            <ul className="text-xs space-y-1">
+              <li><span className="text-[#4ade80] font-medium">{plan.toUpdate}</span> updated</li>
+              <li><span className="text-[#FF7A35] font-medium">{plan.toAdd.length}</span> added at the bottom (missing details left blank)</li>
+              <li><span className="text-[#f87171] font-medium">{plan.toRemove.length}</span> removed — rows deleted from the Google Sheet</li>
+            </ul>
+            {removeShare > 0.1 && (
+              <p className="text-xs text-[#f87171] font-medium">
+                Warning: this removes {Math.round(removeShare * 100)}% of the employees in the sheet. Check that this is the full report, not a partial export.
+              </p>
+            )}
+            {plan.toRemove.length > 0 && (
+              <div>
+                <p className="text-[11px] text-[#888888] mb-1">Will be removed:</p>
+                <div className="max-h-28 overflow-y-auto text-[11px] text-[#aaaaaa] font-mono rounded p-2" style={{ background: "#111" }}>
+                  {plan.toRemove.map(e => <div key={e.employeeId}>{e.employeeId} — {e.name || "(no name)"}</div>)}
+                </div>
+              </div>
+            )}
+            {plan.toAdd.length > 0 && (
+              <div>
+                <p className="text-[11px] text-[#888888] mb-1">Will be added:</p>
+                <div className="max-h-28 overflow-y-auto text-[11px] text-[#aaaaaa] font-mono rounded p-2" style={{ background: "#111" }}>
+                  {plan.toAdd.map(e => <div key={e.employeeId}>{e.employeeId} — {e.name || "(no name)"}</div>)}
+                </div>
+              </div>
+            )}
+            <p className="text-[11px] text-[#666666]">A backup copy of the tab is saved before any change.</p>
+          </div>
+        )}
       />
     </div>
   );
